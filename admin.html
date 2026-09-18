@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skyview AOBG26 Legal Repository - Administrator Dashboard</title>
+  <?!= include('styles'); ?>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-top-row">
+        <div class="header-title-wrap">
+          <span class="header-badge" style="background: rgba(234, 179, 8, 0.25); border-color: rgba(234, 179, 8, 0.5);">Administrator</span>
+          <h1 class="app-title">Skyview AOBG26 Legal Repository</h1>
+        </div>
+        <div class="header-nav">
+          <? if (typeof status !== 'undefined' && status.initialized) { ?>
+            <a href="?page=portal" class="nav-link-btn">
+              <span>📋</span> Member Upload Portal
+            </a>
+            <button type="button" class="nav-link-btn" onclick="downloadCsvExport()">
+              <span>⬇️</span> Export CSV
+            </button>
+          <? } else { ?>
+            <span class="nav-link-btn" style="cursor: default; opacity: 0.9;">
+              <span>⚙️</span> Administrator Setup
+            </span>
+          <? } ?>
+        </div>
+      </div>
+      <p class="app-subtitle">
+        Association Advocates & Admin Console • Operated by <strong>skyviewaobg26@gmail.com</strong>
+      </p>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <?
+      var status = checkRepositoryStatus();
+      if (!status.initialized) {
+    ?>
+      <!-- FIRST RUN EXPERIENCE: Setup Screen -->
+      <div class="setup-box">
+        <div class="setup-icon">⚙️</div>
+        <h2 class="setup-title">First-Run Repository Initialization</h2>
+        <p class="setup-desc">
+          The Skyview Legal Repository has not yet been provisioned in your Google Drive. Click below to automatically generate the complete folder hierarchy, configure Tower directories, and create the Master Register spreadsheet with the hidden Settings store.
+        </p>
+
+        <div class="setup-tree-preview">
+📁 Skyview Legal Repository
+   ├── 📁 Block Venus
+   │     ├── Tower A
+   │     ├── Tower B
+   │     ├── Tower C
+   │     └── Tower D
+   ├── 📁 Block Jupiter
+   │     ├── Tower A
+   │     ├── Tower B
+   │     ├── Tower C
+   │     ├── Tower D
+   │     └── Tower E
+   ├── 📁 Association Documents
+   ├── 📁 Court Proceedings
+   └── 📊 Skyview Master Register (Spreadsheet + Hidden Settings)
+        </div>
+
+        <button type="button" id="initRepoBtn" class="btn btn-primary btn-lg">
+          <span id="initSpinner" class="spinner hidden"></span>
+          <span>Initialize Skyview Repository</span>
+        </button>
+        <p id="initStatusText" style="margin-top: 12px; font-size: 0.85rem; color: var(--text-muted);"></p>
+      </div>
+
+    <? } else {
+      var data = getAdminDashboardData();
+      var stats = data.statistics;
+      var records = data.records;
+    ?>
+
+      <!-- Quick Action Ribbon -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <? if (data.rootFolderUrl) { ?>
+            <a href="<?= data.rootFolderUrl ?>" target="_blank" class="btn btn-outline" style="font-size: 0.85rem;">
+              📁 Open Root Drive Folder
+            </a>
+          <? } ?>
+          <? if (data.spreadsheetUrl) { ?>
+            <a href="<?= data.spreadsheetUrl ?>" target="_blank" class="btn btn-outline" style="font-size: 0.85rem;">
+              📊 Open Master Google Sheet
+            </a>
+          <? } ?>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="downloadCsvExport()" style="font-size: 0.85rem;">
+          Export Master Register (CSV)
+        </button>
+      </div>
+
+      <!-- Statistics Cards (8 Cards) -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Total Members</span>
+            <span class="stat-icon">👥</span>
+          </div>
+          <div class="stat-value"><?= stats.totalMembers ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Total Submissions</span>
+            <span class="stat-icon">📨</span>
+          </div>
+          <div class="stat-value"><?= stats.totalSubmissions ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Total Units</span>
+            <span class="stat-icon">🏢</span>
+          </div>
+          <div class="stat-value"><?= stats.totalUnits ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Total Documents</span>
+            <span class="stat-icon">📄</span>
+          </div>
+          <div class="stat-value" style="color: var(--secondary);"><?= stats.totalDocuments ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Venus Units</span>
+            <span class="stat-icon">🌟</span>
+          </div>
+          <div class="stat-value"><?= stats.venusUnits ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Jupiter Units</span>
+            <span class="stat-icon">🪐</span>
+          </div>
+          <div class="stat-value"><?= stats.jupiterUnits ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Litigants</span>
+            <span class="stat-icon">⚖️</span>
+          </div>
+          <div class="stat-value" style="color: #B45309;"><?= stats.litigants ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Registered Owners</span>
+            <span class="stat-icon">📜</span>
+          </div>
+          <div class="stat-value" style="color: #047857;"><?= stats.registeredOwners ?></div>
+        </div>
+      </div>
+
+      <!-- Searchable Master Register Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>📑</span>
+            Master Legal Register & Document Index
+          </h2>
+          <span id="filteredCount" class="badge badge-primary"><?= records.length ?> records</span>
+        </div>
+
+        <!-- Table Toolbar: Instant Search + Multi-filters -->
+        <div class="table-toolbar">
+          <div class="search-input-wrapper">
+            <span class="search-icon-inside">🔍</span>
+            <input
+              type="text"
+              id="tableSearchInput"
+              class="search-input"
+              placeholder="Search by Member Name, Mobile Number, Unit Code (e.g. VA-1204), Flat (04), or Submission ID (SV-SUB-000001)..."
+            />
+          </div>
+
+          <div class="filters-row">
+            <div class="form-group">
+              <select id="filterBlock" class="form-select" onchange="filterAdminTable()">
+                <option value="">All Blocks</option>
+                <option value="Venus">Venus</option>
+                <option value="Jupiter">Jupiter</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <select id="filterTower" class="form-select" onchange="filterAdminTable()">
+                <option value="">All Towers</option>
+                <option value="A">Tower A</option>
+                <option value="B">Tower B</option>
+                <option value="C">Tower C</option>
+                <option value="D">Tower D</option>
+                <option value="E">Tower E</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <select id="filterDocType" class="form-select" onchange="filterAdminTable()">
+                <option value="">All Document Types</option>
+                <option value="Allotment Letter">Allotment Letter</option>
+                <option value="Builder Buyer Agreement">Builder Buyer Agreement</option>
+                <option value="Payment Receipt">Payment Receipt</option>
+                <option value="Consumer Forum Order">Consumer Forum Order</option>
+                <option value="Execution Petition">Execution Petition</option>
+                <option value="RERA Order">RERA Order</option>
+                <option value="Absolute Sale Deed">Absolute Sale Deed</option>
+                <option value="Encumbrance Certificate">Encumbrance Certificate</option>
+                <option value="Possession Letter">Possession Letter</option>
+                <option value="Khata">Khata</option>
+                <option value="Legal Notice">Legal Notice</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Unit Code</th>
+                <th>Member Name</th>
+                <th>Legal Status</th>
+                <th>Document Type</th>
+                <th>Submission ID</th>
+                <th>Upload Timestamp</th>
+                <th>Original File</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody">
+              <? if (records.length === 0) { ?>
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    No documents uploaded yet. Share the Member Portal link with association members to begin collecting records.
+                  </td>
+                </tr>
+              <? } else {
+                for (var r = 0; r < records.length; r++) {
+                  var rec = records[r];
+              ?>
+                <tr
+                  data-block="<?= rec['Block'] ?>"
+                  data-tower="<?= rec['Tower'] ?>"
+                  data-doctype="<?= rec['Document Type'] ?>"
+                >
+                  <td>
+                    <span class="badge badge-primary"><?= rec['Unit Code'] ?></span>
+                  </td>
+                  <td>
+                    <strong><?= rec['Member Name'] ?></strong><br>
+                    <small style="color: var(--text-muted);"><?= rec['Mobile'] ?></small>
+                  </td>
+                  <td>
+                    <small><?= rec['Legal Status'] ?></small>
+                  </td>
+                  <td>
+                    <strong><?= rec['Document Type'] ?></strong>
+                    <? if (rec['Remarks']) { ?>
+                      <br><small style="color: var(--text-muted);">Remarks: <?= rec['Remarks'] ?></small>
+                    <? } ?>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace; font-size: 0.8rem;"><?= rec['Submission ID'] ?></span>
+                  </td>
+                  <td>
+                    <small><?= rec['Upload Timestamp'] ?></small>
+                  </td>
+                  <td>
+                    <span style="font-size: 0.8rem;"><?= rec['Original Filename'] ?></span>
+                  </td>
+                  <td>
+                    <? if (rec['Google Drive Link']) { ?>
+                      <a href="<?= rec['Google Drive Link'] ?>" target="_blank" class="btn btn-outline" style="padding: 4px 10px; font-size: 0.78rem;">
+                        View Document ↗
+                      </a>
+                    <? } else { ?>
+                      -
+                    <? } ?>
+                  </td>
+                </tr>
+              <? } } ?>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    <? } ?>
+
+  </main>
+
+  <?!= include('scripts'); ?>
+</body>
+</html>
