@@ -1,0 +1,6 @@
+{
+  "name": "Skyview AOBG26 Legal Repository",
+  "description": "Google Apps Script legal document repository and management portal for Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

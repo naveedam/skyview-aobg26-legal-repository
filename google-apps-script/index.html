@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skyview AOBG26 Legal Repository - Member Portal</title>
+  <?!= include('styles'); ?>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-top-row">
+        <div class="header-title-wrap">
+          <span class="header-badge">Member Portal</span>
+          <h1 class="app-title">Skyview AOBG26 Legal Repository</h1>
+        </div>
+        <div class="header-nav">
+          <? if (isAdmin) { ?>
+            <a href="?page=admin" class="nav-link-btn">
+              <span>⚙️</span> Administrator Dashboard
+            </a>
+          <? } ?>
+        </div>
+      </div>
+      <p class="app-subtitle">
+        Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
+      </p>
+    </div>
+  </header>
+
+  <!-- Main Content Form -->
+  <main class="main-content">
+    <form id="memberUploadForm" novalidate>
+
+      <!-- Section 1: Member Details -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-number">1</span>
+            Member Details
+          </h2>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label form-label-required" for="memberName">Full Name</label>
+            <input type="text" id="memberName" class="form-input" placeholder="e.g. Naveed Ahmed" required />
+            <span class="form-hint">Enter your legal name as recorded on property documents.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label form-label-required" for="memberMobile">Mobile Number</label>
+            <input type="tel" id="memberMobile" class="form-input" placeholder="e.g. +91 9876543210" required />
+            <span class="form-hint">For association updates and legal notices.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label form-label-required" for="memberEmail">Email Address</label>
+            <input type="email" id="memberEmail" class="form-input" placeholder="e.g. naveed@example.com" required />
+            <span class="form-hint">Submission receipt and case notifications will be sent here.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Legal Status (Multiple Checkbox) -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-number">2</span>
+            Legal Status
+          </h2>
+        </div>
+        <p class="form-hint" style="margin-bottom: 14px;">Select all classifications that apply to your current standing with the builder or court proceedings:</p>
+        <div class="checkbox-grid">
+          <label class="checkbox-card">
+            <input type="checkbox" name="legalStatus" value="Allottee" />
+            <span class="checkbox-label">Allottee</span>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" name="legalStatus" value="Prospective Buyer" />
+            <span class="checkbox-label">Prospective Buyer</span>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" name="legalStatus" value="Litigant" />
+            <span class="checkbox-label">Litigant</span>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" name="legalStatus" value="Registered Owner" />
+            <span class="checkbox-label">Registered Owner</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Section 3 & 4: Repeating Property Units & Document Upload -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-number">3</span>
+            Property Units & Legal Documents
+          </h2>
+        </div>
+        <p class="form-hint" style="margin-bottom: 16px;">
+          Members owning multiple apartments can add as many units as needed. Unit codes (e.g. <strong>VA-1204</strong>) and standardized folder hierarchies are generated automatically.
+        </p>
+
+        <!-- Dynamic Repeating Units Container -->
+        <div id="unitsContainer"></div>
+
+        <!-- Add Another Unit Button -->
+        <div style="margin-top: 10px; display: flex; justify-content: flex-start;">
+          <button type="button" id="addUnitBtn" class="btn btn-outline">
+            <span style="font-size: 1.1rem; font-weight: bold;">+</span> Add Another Property Unit
+          </button>
+        </div>
+      </section>
+
+      <!-- Submission Actions -->
+      <div style="display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px;">
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-lg">
+          <span id="submitSpinner" class="spinner hidden"></span>
+          <span id="submitBtnText">Submit Legal Documents to Repository</span>
+        </button>
+      </div>
+
+    </form>
+  </main>
+
+  <!-- Submission Success Modal -->
+  <div id="successModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-icon">✓</div>
+      <h3 class="modal-title">Documents Submitted Successfully</h3>
+      <p class="modal-subtitle">Your legal documents have been secured in the Skyview Drive repository and indexed in the Master Register.</p>
+
+      <div class="receipt-box">
+        <div class="receipt-row">
+          <span class="receipt-label">Submission ID</span>
+          <span class="receipt-value" id="receiptSubId">SV-SUB-000001</span>
+        </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Member Name</span>
+          <span class="receipt-value" id="receiptMemberName">-</span>
+        </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Timestamp</span>
+          <span class="receipt-value" id="receiptTimestamp">-</span>
+        </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Units Recorded</span>
+          <span class="receipt-value" id="receiptUnitsCount">-</span>
+        </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Documents Secured</span>
+          <span class="receipt-value" id="receiptDocsCount">-</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center; gap: 12px;">
+        <button type="button" class="btn btn-primary" onclick="resetFormAfterSuccess()">
+          Done / Upload Another
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <?!= include('scripts'); ?>
+</body>
+</html>
