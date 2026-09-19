@@ -1,28 +1,133 @@
 /**
  * Skyview AOBG26 Legal Repository
  * Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
- * Owner Account: skyviewaobg26@gmail.com
+ * Repository: naveedam/skyview-aobg26-legal-repository
  *
  * File: Utils.gs
- * Description: Helper functions for ID generation, unit codes, file naming, and date formatting.
+ * Description: Centralized constants, ID generators, string formatters, and HTML template helpers.
  */
 
-var ADMIN_EMAIL = 'skyviewaobg26@gmail.com';
+// ==========================================
+// CENTRALIZED REPOSITORY CONSTANTS
+// ==========================================
+
+/** Official registered association name */
+var ASSOCIATION_NAME = "Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association";
+
+/** Name of the root Google Drive repository folder */
+var ROOT_FOLDER_NAME = 'Skyview Legal Repository';
+
+/** Name of the Master Register Google Spreadsheet */
+var SPREADSHEET_NAME = 'Skyview Master Register';
+
+/** Sheet names within the Master Register */
+var SHEET_NAME_REGISTER = 'Register';
+var SHEET_NAME_SETTINGS = 'Settings';
+
+/** Building Blocks configuration */
+var BLOCKS = ['Venus', 'Jupiter'];
+var VENUS_TOWERS = ['A', 'B', 'C', 'D'];
+var JUPITER_TOWERS = ['A', 'B', 'C', 'D', 'E'];
+
+/** Allowed document file extensions and size limit */
+var ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+var MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
+/** Standard timezone for all association records */
+var TIMEZONE = 'Asia/Kolkata';
 
 /**
- * Returns whether the current user is the administrator
+ * 17 Standardized Columns for the Master Register
+ */
+var REGISTER_COLUMNS = [
+  'Submission ID',
+  'Upload Timestamp',
+  'Member Name',
+  'Mobile',
+  'Email',
+  'Legal Status',
+  'Block',
+  'Tower',
+  'Floor',
+  'Flat',
+  'Unit Code',
+  'Document Type',
+  'Remarks',
+  'Original Filename',
+  'Stored Filename',
+  'Google Drive File ID',
+  'Google Drive Link'
+];
+
+// ==========================================
+// HELPER FUNCTIONS & BUSINESS LOGIC
+// ==========================================
+
+/**
+ * Dynamically retrieves the authorized administrator email address.
+ * Reads from the hidden Settings sheet / Script Properties.
+ *
+ * @return {string} Configured admin email address in lowercase, or empty string if not yet set.
+ */
+function getAdminEmail() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var cached = props.getProperty('ADMIN_EMAIL');
+    if (cached) {
+      return cached.toLowerCase().trim();
+    }
+    
+    // Read from hidden Settings sheet
+    var settingVal = getSetting('ADMIN_EMAIL');
+    if (settingVal) {
+      props.setProperty('ADMIN_EMAIL', settingVal.toLowerCase().trim());
+      return settingVal.toLowerCase().trim();
+    }
+  } catch (e) {
+    Logger.log('Error reading dynamic ADMIN_EMAIL: ' + e);
+  }
+  return '';
+}
+
+/**
+ * Checks whether the active user session is the authorized Administrator.
+ * 
+ * Rules:
+ * 1. If repository is not yet initialized, returns true for the first logged-in user
+ *    to allow one-time setup and initialization.
+ * 2. After initialization, only the stored ADMIN_EMAIL read dynamically from
+ *    the Settings sheet is authorized.
+ *
  * @return {boolean}
  */
 function checkIsAdminUser() {
   try {
-    var activeEmail = Session.getActiveUser().getEmail();
+    var activeEmail = '';
+    try {
+      activeEmail = Session.getActiveUser().getEmail() || '';
+    } catch (sessionErr) {
+      Logger.log('Could not obtain Session email: ' + sessionErr);
+    }
+    
     if (!activeEmail) {
-      // In web apps deployed as USER_DEPLOYING, getActiveUser() may be blank for anonymous users
       return false;
     }
-    return activeEmail.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+    activeEmail = activeEmail.toLowerCase().trim();
+    
+    var status = checkRepositoryStatus();
+    if (!status.initialized) {
+      // First-run uninitialized state: allow the logged-in user to perform setup
+      return true;
+    }
+    
+    var configuredAdmin = getAdminEmail();
+    if (!configuredAdmin) {
+      return false;
+    }
+    
+    return activeEmail === configuredAdmin;
   } catch (e) {
-    Logger.log('Error checking admin user: ' + e);
+    Logger.log('Admin authorization check exception: ' + e);
     return false;
   }
 }
@@ -52,7 +157,7 @@ function formatUnitCode(block, tower, floor, flat) {
 }
 
 /**
- * Generates an atomic sequential submission ID (e.g. SV-SUB-000001)
+ * Generates an atomic sequential submission ID (e.g. SV-SUB-000001) using ScriptLock
  * @return {string}
  */
 function generateSubmissionId() {
@@ -60,9 +165,7 @@ function generateSubmissionId() {
   var lock = LockService.getScriptLock();
   
   try {
-    // Wait up to 10 seconds for concurrent submissions
     lock.waitLock(10000);
-    
     var currentCounter = parseInt(props.getProperty('SUBMISSION_COUNTER') || '0', 10);
     var nextCounter = currentCounter + 1;
     props.setProperty('SUBMISSION_COUNTER', nextCounter.toString());
@@ -71,8 +174,7 @@ function generateSubmissionId() {
     return 'SV-SUB-' + counterPadded;
   } catch (e) {
     Logger.log('Lock error generating submission ID: ' + e);
-    // Fallback: timestamp based unique ID
-    return 'SV-SUB-' + Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyMMddHHmmss');
+    return 'SV-SUB-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyMMddHHmmss');
   } finally {
     lock.releaseLock();
   }
@@ -98,7 +200,7 @@ function generateStandardFilename(block, tower, unitCode, docType, date, sequenc
   var cleanUnit = (unitCode || 'VA0000').toString().trim().replace(/[^a-zA-Z0-9]/g, '');
   var cleanDocType = (docType || 'Document').toString().trim().replace(/[^a-zA-Z0-9]/g, '');
   
-  var dateStr = Utilities.formatDate(date || new Date(), 'Asia/Kolkata', 'yyyyMMdd');
+  var dateStr = Utilities.formatDate(date || new Date(), TIMEZONE, 'yyyyMMdd');
   var seqStr = ('00' + (sequenceIndex || 1)).slice(-2);
   
   var ext = '';
@@ -112,7 +214,9 @@ function generateStandardFilename(block, tower, unitCode, docType, date, sequenc
 }
 
 /**
- * Sanitizes strings for safety
+ * Sanitizes input text by trimming and handling nulls
+ * @param {*} str
+ * @return {string}
  */
 function sanitizeText(str) {
   if (str === null || str === undefined) return '';
@@ -121,7 +225,57 @@ function sanitizeText(str) {
 
 /**
  * Formats a Date object to YYYY-MM-DD HH:mm:ss in IST
+ * @param {Date} [date]
+ * @return {string}
  */
 function formatTimestampIST(date) {
-  return Utilities.formatDate(date || new Date(), 'Asia/Kolkata', 'yyyy-MM-dd HH:mm:ss');
+  return Utilities.formatDate(date || new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
+}
+
+/**
+ * Helper to include partial HTML files in GAS templates.
+ * Supports both standard ('styles') and clasp subfolder ('html/styles') resolution seamlessly.
+ *
+ * @param {string} filename
+ * @return {string} HTML content
+ */
+function include(filename) {
+  var namesToTry = [
+    filename,
+    'html/' + filename,
+    filename.replace(/^html\//, '')
+  ];
+  
+  for (var i = 0; i < namesToTry.length; i++) {
+    try {
+      return HtmlService.createHtmlOutputFromFile(namesToTry[i]).getContent();
+    } catch (e) {
+      // try next
+    }
+  }
+  throw new Error('Include file not found: ' + filename);
+}
+
+/**
+ * Helper to resolve an HTML template file.
+ * Checks both root and 'html/' subdirectory.
+ *
+ * @param {string} templateName
+ * @return {GoogleAppsScript.HTML.HtmlTemplate}
+ */
+function getHtmlTemplate(templateName) {
+  var namesToTry = [
+    templateName,
+    'html/' + templateName,
+    templateName.replace(/^html\//, '')
+  ];
+  
+  for (var i = 0; i < namesToTry.length; i++) {
+    try {
+      return HtmlService.createTemplateFromFile(namesToTry[i]);
+    } catch (e) {
+      // try next
+    }
+  }
+  throw new Error('Template file not found: ' + templateName);
 }

@@ -1,89 +1,130 @@
 /**
  * Skyview AOBG26 Legal Repository
  * Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
- * Owner Account: skyviewaobg26@gmail.com
+ * Repository: naveedam/skyview-aobg26-legal-repository
  *
  * File: Drive.gs
- * Description: Drive folder structure management, unit folder locator/creator, and file persistence.
+ * Description: Google Drive hierarchical folder management.
+ * Dynamically resolves Root, Block, Tower, and Unit folders using the hidden Settings sheet.
+ * Never hardcodes any Folder IDs.
  */
 
 /**
- * Returns the Root Folder: Skyview Legal Repository
+ * Returns the Root Google Drive Folder ("Skyview Legal Repository")
+ * Resolves ID dynamically from the hidden Settings sheet.
+ *
  * @return {GoogleAppsScript.Drive.Folder}
  */
 function getRootRepositoryFolder() {
   var rootId = getSetting('ROOT_FOLDER_ID');
+  
+  // Fallback: Drive search if ID not yet cached
   if (!rootId) {
-    throw new Error('Repository Root Folder not configured. Please initialize the repository.');
+    try {
+      var folders = DriveApp.getFoldersByName(ROOT_FOLDER_NAME);
+      if (folders.hasNext()) {
+        var root = folders.next();
+        rootId = root.getId();
+        saveSetting('ROOT_FOLDER_ID', rootId, 'Root ID for Skyview Legal Repository');
+      }
+    } catch (e) {
+      Logger.log('Error locating root folder: ' + e);
+    }
   }
+  
+  if (!rootId) {
+    throw new Error('Repository Root Folder not found. Please run Administrator Setup first.');
+  }
+  
   return DriveApp.getFolderById(rootId);
 }
 
 /**
+ * Returns the Block Folder ("Block Venus" or "Block Jupiter")
+ *
+ * @param {string} block "Venus" | "Jupiter"
+ * @return {GoogleAppsScript.Drive.Folder}
+ */
+function getBlockFolder(block) {
+  var blockName = sanitizeText(block || 'Venus');
+  var blockKey = (blockName.toUpperCase().charAt(0) === 'J') ? 'JUPITER' : 'VENUS';
+  var settingKey = blockKey + '_FOLDER_ID';
+  
+  var blockFolderId = getSetting(settingKey);
+  if (blockFolderId) {
+    try {
+      return DriveApp.getFolderById(blockFolderId);
+    } catch (e) {
+      Logger.log('Invalid cached block folder ID for ' + settingKey + ': ' + e);
+    }
+  }
+  
+  // Fallback: search or create under root
+  var root = getRootRepositoryFolder();
+  var targetName = 'Block ' + (blockKey === 'JUPITER' ? 'Jupiter' : 'Venus');
+  var matches = root.getFoldersByName(targetName);
+  var folder;
+  if (matches.hasNext()) {
+    folder = matches.next();
+  } else {
+    folder = root.createFolder(targetName);
+  }
+  
+  saveSetting(settingKey, folder.getId(), 'Folder ID for ' + targetName);
+  return folder;
+}
+
+/**
  * Returns the Tower folder for a given Block and Tower.
- * Uses cached tower folder IDs from ScriptProperties / Settings.
+ * Dynamically resolves folder ID from the hidden Settings sheet.
  *
  * @param {string} block "Venus" | "Jupiter"
  * @param {string} tower "A" | "B" | "C" | "D" | "E"
  * @return {GoogleAppsScript.Drive.Folder}
  */
 function getTowerFolder(block, tower) {
-  var blockKey = (block || 'Venus').toString().trim();
-  var towerKey = (tower || 'A').toString().trim().toUpperCase();
+  var blockName = sanitizeText(block || 'Venus');
+  var blockKey = (blockName.toUpperCase().charAt(0) === 'J') ? 'JUPITER' : 'VENUS';
+  var towerLetter = sanitizeText(tower || 'A').toUpperCase();
   
-  var propKey = 'FOLDER_' + blockKey.toUpperCase() + '_TOWER_' + towerKey;
-  var towerFolderId = getSetting(propKey);
+  var settingKey = 'FOLDER_' + blockKey + '_TOWER_' + towerLetter;
+  var towerFolderId = getSetting(settingKey);
   
   if (towerFolderId) {
     try {
       return DriveApp.getFolderById(towerFolderId);
     } catch (e) {
-      Logger.log('Cached folder ID invalid for ' + propKey + ': ' + e);
+      Logger.log('Invalid cached tower folder ID for ' + settingKey + ': ' + e);
     }
   }
   
-  // Fallback: locate via Block folder
-  var blockFolderId = getSetting(blockKey.toUpperCase() + '_FOLDER_ID');
-  var blockFolder;
-  if (blockFolderId) {
-    blockFolder = DriveApp.getFolderById(blockFolderId);
+  // Locate or create under Block folder
+  var blockFolder = getBlockFolder(blockKey);
+  var targetName = 'Tower ' + towerLetter;
+  var matches = blockFolder.getFoldersByName(targetName);
+  var folder;
+  if (matches.hasNext()) {
+    folder = matches.next();
   } else {
-    var root = getRootRepositoryFolder();
-    var blockFolders = root.getFoldersByName('Block ' + blockKey);
-    if (blockFolders.hasNext()) {
-      blockFolder = blockFolders.next();
-      saveSetting(blockKey.toUpperCase() + '_FOLDER_ID', blockFolder.getId());
-    } else {
-      blockFolder = root.createFolder('Block ' + blockKey);
-      saveSetting(blockKey.toUpperCase() + '_FOLDER_ID', blockFolder.getId());
-    }
+    folder = blockFolder.createFolder(targetName);
   }
   
-  var targetName = 'Tower ' + towerKey;
-  var towerFolders = blockFolder.getFoldersByName(targetName);
-  var towerFolder;
-  if (towerFolders.hasNext()) {
-    towerFolder = towerFolders.next();
-  } else {
-    towerFolder = blockFolder.createFolder(targetName);
-  }
-  
-  saveSetting(propKey, towerFolder.getId());
-  return towerFolder;
+  saveSetting(settingKey, folder.getId(), 'Folder ID for ' + blockKey + ' Tower ' + towerLetter);
+  return folder;
 }
 
 /**
  * Automatically locates or creates the specific Unit Folder under the corresponding Tower folder.
- * Example: Skyview Legal Repository -> Block Venus -> Tower A -> VA-1204
+ * Example Hierarchy: Skyview Legal Repository -> Block Venus -> Tower A -> VA-1204
  *
- * @param {string} block
- * @param {string} tower
- * @param {string} unitCode e.g. "VA-1204"
+ * @param {string} block "Venus" | "Jupiter"
+ * @param {string} tower "A" | "B" | "C" | "D" | "E"
+ * @param {string} unitCode Standard unit code e.g. "VA-1204"
  * @return {GoogleAppsScript.Drive.Folder}
  */
 function getOrCreateUnitFolder(block, tower, unitCode) {
   var towerFolder = getTowerFolder(block, tower);
-  var unitName = (unitCode || 'Unit').toString().trim();
+  var unitName = sanitizeText(unitCode || 'Unit');
   
   var existing = towerFolder.getFoldersByName(unitName);
   if (existing.hasNext()) {
@@ -95,17 +136,58 @@ function getOrCreateUnitFolder(block, tower, unitCode) {
 }
 
 /**
- * Saves an uploaded file into the target Unit Folder
+ * Returns the Association Documents folder
+ * @return {GoogleAppsScript.Drive.Folder}
+ */
+function getAssociationDocsFolder() {
+  var folderId = getSetting('FOLDER_ASSOCIATION_DOCS');
+  if (folderId) {
+    try {
+      return DriveApp.getFolderById(folderId);
+    } catch (e) {
+      Logger.log('Invalid cached Association Docs folder ID: ' + e);
+    }
+  }
+  
+  var root = getRootRepositoryFolder();
+  var matches = root.getFoldersByName('Association Documents');
+  var folder = matches.hasNext() ? matches.next() : root.createFolder('Association Documents');
+  saveSetting('FOLDER_ASSOCIATION_DOCS', folder.getId(), 'Folder ID for Association Documents');
+  return folder;
+}
+
+/**
+ * Returns the Court Proceedings folder
+ * @return {GoogleAppsScript.Drive.Folder}
+ */
+function getCourtProceedingsFolder() {
+  var folderId = getSetting('FOLDER_COURT_PROCEEDINGS');
+  if (folderId) {
+    try {
+      return DriveApp.getFolderById(folderId);
+    } catch (e) {
+      Logger.log('Invalid cached Court Proceedings folder ID: ' + e);
+    }
+  }
+  
+  var root = getRootRepositoryFolder();
+  var matches = root.getFoldersByName('Court Proceedings');
+  var folder = matches.hasNext() ? matches.next() : root.createFolder('Court Proceedings');
+  saveSetting('FOLDER_COURT_PROCEEDINGS', folder.getId(), 'Folder ID for Court Proceedings');
+  return folder;
+}
+
+/**
+ * Saves an uploaded base64 file into the target Unit Folder
  *
  * @param {GoogleAppsScript.Drive.Folder} unitFolder
- * @param {string} base64Data Base64-encoded file data
- * @param {string} mimeType
- * @param {string} standardizedFilename
+ * @param {string} base64Data Base64 encoded file string
+ * @param {string} mimeType File mime type
+ * @param {string} standardizedFilename Standardized association filename
  * @param {string} description Remarks or metadata
  * @return {Object} { fileId, fileUrl, downloadUrl }
  */
 function saveFileToUnitFolder(unitFolder, base64Data, mimeType, standardizedFilename, description) {
-  // Extract pure base64 string if data URL prefix exists
   var cleanBase64 = base64Data;
   if (cleanBase64.indexOf(',') !== -1) {
     cleanBase64 = cleanBase64.split(',')[1];

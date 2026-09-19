@@ -32,7 +32,7 @@
         </div>
       </div>
       <p class="app-subtitle">
-        Association Advocates & Admin Console • Operated by <strong>skyviewaobg26@gmail.com</strong>
+        Association Advocates & Admin Console • Operated by <strong><?= (typeof userEmail !== 'undefined' && userEmail) ? userEmail : (getAdminEmail() || 'Administrator') ?></strong>
       </p>
     </div>
   </header>
@@ -78,8 +78,17 @@
 
     <? } else {
       var data = getAdminDashboardData();
-      var stats = data.statistics;
-      var records = data.records;
+      var stats = data.statistics || data.stats || {
+        totalMembers: 0,
+        totalSubmissions: 0,
+        totalUnits: 0,
+        totalDocuments: 0,
+        venusUnits: 0,
+        jupiterUnits: 0,
+        litigants: 0,
+        registeredOwners: 0
+      };
+      var records = data.records || [];
     ?>
 
       <!-- Quick Action Ribbon -->

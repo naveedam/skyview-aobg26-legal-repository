@@ -1,20 +1,17 @@
 /**
  * Skyview AOBG26 Legal Repository
  * Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
- * Owner Account: skyviewaobg26@gmail.com
+ * Repository: naveedam/skyview-aobg26-legal-repository
  *
  * File: Admin.gs
- * Description: One-time repository initialization, folder hierarchy generation,
- * dashboard metrics calculation, search filtering, and CSV export.
+ * Description: Self-initializing repository setup, folder hierarchy generation,
+ * hidden Settings sheet persistence, and Admin Dashboard data endpoints.
  */
 
 /**
- * Checks if the repository has been initialized
- * @return {Object} { initialized: boolean, rootFolderId: string, spreadsheetId: string }
- */
-/**
- * Checks if the repository has been initialized
- * @return {Object} { initialized: boolean, rootFolderId: string, spreadsheetId: string }
+ * Checks whether the repository has been initialized in Google Drive & Sheets.
+ *
+ * @return {Object} { initialized: boolean, rootFolderId: string, spreadsheetId: string, rootFolderUrl: string, spreadsheetUrl: string }
  */
 function checkRepositoryStatus() {
   var props = PropertiesService.getScriptProperties();
@@ -28,34 +25,35 @@ function checkRepositoryStatus() {
   if (rootFolderId && masterRegisterId) {
     try {
       var rootFolder = DriveApp.getFolderById(rootFolderId);
-      var ss = SpreadsheetApp.openById(masterRegisterId);
+      var masterFile = DriveApp.getFileById(masterRegisterId);
       rootFolderUrl = rootFolder.getUrl();
-      spreadsheetUrl = ss.getUrl();
+      spreadsheetUrl = masterFile.getUrl();
       isReady = true;
     } catch (e) {
-      Logger.log('Drive/Sheet access verification error: ' + e);
+      Logger.log('Drive/Sheet access check error: ' + e);
       isReady = false;
     }
   } else {
-    // Fallback: Check if repository was already created in Google Drive
+    // Auto-discovery fallback in Google Drive
     try {
-      var folders = DriveApp.getFoldersByName('Skyview Legal Repository');
+      var folders = DriveApp.getFoldersByName(ROOT_FOLDER_NAME);
       if (folders.hasNext()) {
         var existingRoot = folders.next();
-        var files = existingRoot.getFilesByName('Skyview Master Register');
+        var files = existingRoot.getFilesByName(SPREADSHEET_NAME);
         if (files.hasNext()) {
           var existingSheet = files.next();
           rootFolderId = existingRoot.getId();
           masterRegisterId = existingSheet.getId();
           props.setProperty('ROOT_FOLDER_ID', rootFolderId);
           props.setProperty('MASTER_REGISTER_ID', masterRegisterId);
+          props.setProperty('INITIALIZED', 'true');
           rootFolderUrl = existingRoot.getUrl();
           spreadsheetUrl = existingSheet.getUrl();
           isReady = true;
         }
       }
     } catch (discoveryErr) {
-      Logger.log('Auto-discovery check error: ' + discoveryErr);
+      Logger.log('Auto-discovery error: ' + discoveryErr);
     }
   }
   
@@ -65,49 +63,73 @@ function checkRepositoryStatus() {
     rootFolderUrl: rootFolderUrl,
     spreadsheetId: masterRegisterId || '',
     spreadsheetUrl: spreadsheetUrl,
-    isAdmin: checkIsAdminUser()
+    adminEmail: getAdminEmail()
   };
 }
 
 /**
- * One-time self-initializing repository setup
- * Automatically creates the exact folder tree, Master Register spreadsheet, and hidden Settings sheet.
+ * One-time Self-Initializing Repository Setup.
+ * Automatically generates the complete Drive hierarchy, Master Register spreadsheet,
+ * and hidden Settings sheet.
+ * Saves the current logged-in user email as ADMIN_EMAIL into the Settings sheet.
  * Stores all generated Folder IDs and Spreadsheet IDs inside the hidden Settings sheet.
  *
  * @return {Object} Initialization result details
  */
 function initializeRepository() {
+  var status = checkRepositoryStatus();
+  var currentUserEmail = '';
+  try {
+    currentUserEmail = Session.getActiveUser().getEmail() || '';
+  } catch (sessionErr) {
+    Logger.log('Session error during initialization: ' + sessionErr);
+  }
+  currentUserEmail = currentUserEmail.toLowerCase().trim();
+
+  if (!currentUserEmail) {
+    throw new Error('Unauthorized: Could not determine active Google Account email. Please ensure you are logged in to initialize the repository.');
+  }
+
+  // If already initialized, only the stored ADMIN_EMAIL may re-initialize
+  if (status.initialized) {
+    var existingAdmin = getAdminEmail();
+    if (existingAdmin && currentUserEmail !== existingAdmin) {
+      throw new Error('Unauthorized: Repository is already initialized. Restricted to ' + existingAdmin);
+    }
+  }
+
   var props = PropertiesService.getScriptProperties();
   
-  // 1. Create Root Folder
-  var rootFolder = DriveApp.createFolder('Skyview Legal Repository');
+  // Persist current logged-in user as the authorized Administrator
+  props.setProperty('ADMIN_EMAIL', currentUserEmail);
+  
+  // 1. Create Root Folder: "Skyview Legal Repository"
+  var rootFolder = DriveApp.createFolder(ROOT_FOLDER_NAME);
   var rootFolderId = rootFolder.getId();
   props.setProperty('ROOT_FOLDER_ID', rootFolderId);
   
-  // 2. Create Block Venus and Towers (A–D)
+  // 2. Create Block Venus & Towers (A–D)
   var venusFolder = rootFolder.createFolder('Block Venus');
   var venusFolderId = venusFolder.getId();
   props.setProperty('VENUS_FOLDER_ID', venusFolderId);
   
-  var venusTowers = ['A', 'B', 'C', 'D'];
   var venusTowerMap = {};
-  for (var v = 0; v < venusTowers.length; v++) {
-    var tV = venusTowers[v];
+  for (var v = 0; v < VENUS_TOWERS.length; v++) {
+    var tV = VENUS_TOWERS[v];
     var tFolderV = venusFolder.createFolder('Tower ' + tV);
     var tIdV = tFolderV.getId();
     props.setProperty('FOLDER_VENUS_TOWER_' + tV, tIdV);
     venusTowerMap[tV] = tIdV;
   }
   
-  // 3. Create Block Jupiter and Towers (A–E)
+  // 3. Create Block Jupiter & Towers (A–E)
   var jupiterFolder = rootFolder.createFolder('Block Jupiter');
   var jupiterFolderId = jupiterFolder.getId();
   props.setProperty('JUPITER_FOLDER_ID', jupiterFolderId);
   
-  var jupiterTowers = ['A', 'B', 'C', 'D', 'E'];
   var jupiterTowerMap = {};
-  for (var j = 0; j < jupiterTowers.length; j++) {
-    var tJ = jupiterTowers[j];
+  for (var j = 0; j < JUPITER_TOWERS.length; j++) {
+    var tJ = JUPITER_TOWERS[j];
     var tFolderJ = jupiterFolder.createFolder('Tower ' + tJ);
     var tIdJ = tFolderJ.getId();
     props.setProperty('FOLDER_JUPITER_TOWER_' + tJ, tIdJ);
@@ -124,65 +146,79 @@ function initializeRepository() {
   props.setProperty('FOLDER_COURT_PROCEEDINGS', courtFolderId);
   
   // 5. Create Skyview Master Register Spreadsheet inside Root Folder
-  var spreadsheet = SpreadsheetApp.create('Skyview Master Register');
+  var spreadsheet = SpreadsheetApp.create(SPREADSHEET_NAME);
   var spreadsheetId = spreadsheet.getId();
   props.setProperty('MASTER_REGISTER_ID', spreadsheetId);
   props.setProperty('INITIALIZED', 'true');
   
-  // Move spreadsheet file inside the root repository folder
+  // Move spreadsheet file inside root folder
   var sheetFile = DriveApp.getFileById(spreadsheetId);
   rootFolder.addFile(sheetFile);
   DriveApp.getRootFolder().removeFile(sheetFile);
   
-  // 6. Setup "Register" Sheet
-  var registerSheet = spreadsheet.getActiveSheet();
-  registerSheet.setName('Register');
+  // 6. Setup Primary "Register" Sheet with styled Association teal headers
+  var registerSheet = spreadsheet.getSheetByName('Sheet1') || spreadsheet.getActiveSheet();
+  registerSheet.setName(SHEET_NAME_REGISTER);
   
-  // Insert and style headers
   registerSheet.getRange(1, 1, 1, REGISTER_COLUMNS.length).setValues([REGISTER_COLUMNS]);
+  
+  // Apply Association styling: Teal header (#0F766E), bold white text, frozen row
   var headerRange = registerSheet.getRange(1, 1, 1, REGISTER_COLUMNS.length);
-  headerRange.setBackground('#0F766E');
-  headerRange.setFontColor('#FFFFFF');
-  headerRange.setFontWeight('bold');
-  headerRange.setFontFamily('Arial');
-  headerRange.setHorizontalAlignment('center');
+  headerRange.setBackground('#0F766E')
+             .setFontColor('#FFFFFF')
+             .setFontWeight('bold')
+             .setFontFamily('Arial')
+             .setFontSize(10)
+             .setHorizontalAlignment('center');
+  
   registerSheet.setFrozenRows(1);
   
-  // Auto-resize columns
-  for (var c = 1; c <= REGISTER_COLUMNS.length; c++) {
-    registerSheet.setColumnWidth(c, 160);
-  }
-  registerSheet.setColumnWidth(1, 140); // Submission ID
-  registerSheet.setColumnWidth(2, 160); // Timestamp
-  registerSheet.setColumnWidth(11, 110); // Unit Code
+  // Optimized column sizing
+  registerSheet.setColumnWidth(1, 140);  // Submission ID
+  registerSheet.setColumnWidth(2, 160);  // Upload Timestamp
+  registerSheet.setColumnWidth(3, 180);  // Member Name
+  registerSheet.setColumnWidth(4, 130);  // Mobile
+  registerSheet.setColumnWidth(5, 200);  // Email
+  registerSheet.setColumnWidth(6, 170);  // Legal Status
+  registerSheet.setColumnWidth(7, 90);   // Block
+  registerSheet.setColumnWidth(8, 70);   // Tower
+  registerSheet.setColumnWidth(9, 60);   // Floor
+  registerSheet.setColumnWidth(10, 60);  // Flat
+  registerSheet.setColumnWidth(11, 100); // Unit Code
+  registerSheet.setColumnWidth(12, 180); // Document Type
+  registerSheet.setColumnWidth(13, 220); // Remarks
+  registerSheet.setColumnWidth(14, 220); // Original Filename
+  registerSheet.setColumnWidth(15, 260); // Stored Filename
+  registerSheet.setColumnWidth(16, 220); // Drive File ID
   registerSheet.setColumnWidth(17, 260); // Drive Link
   
   // 7. Setup hidden "Settings" Sheet
-  // Stores ALL generated Folder IDs and Spreadsheet IDs
-  var settingsSheet = spreadsheet.insertSheet('Settings');
+  // Stores ALL generated Folder IDs and Spreadsheet IDs dynamically
+  var settingsSheet = spreadsheet.insertSheet(SHEET_NAME_SETTINGS);
   var settingsData = [
     ['Key', 'Value', 'Description'],
-    ['Root Folder ID', rootFolderId, 'Root ID for Skyview Legal Repository Drive folder'],
-    ['Block Venus Folder ID', venusFolderId, 'Folder ID for Block Venus'],
-    ['Venus Tower A Folder ID', venusTowerMap['A'], 'Folder ID for Venus Tower A'],
-    ['Venus Tower B Folder ID', venusTowerMap['B'], 'Folder ID for Venus Tower B'],
-    ['Venus Tower C Folder ID', venusTowerMap['C'], 'Folder ID for Venus Tower C'],
-    ['Venus Tower D Folder ID', venusTowerMap['D'], 'Folder ID for Venus Tower D'],
-    ['Block Jupiter Folder ID', jupiterFolderId, 'Folder ID for Block Jupiter'],
-    ['Jupiter Tower A Folder ID', jupiterTowerMap['A'], 'Folder ID for Jupiter Tower A'],
-    ['Jupiter Tower B Folder ID', jupiterTowerMap['B'], 'Folder ID for Jupiter Tower B'],
-    ['Jupiter Tower C Folder ID', jupiterTowerMap['C'], 'Folder ID for Jupiter Tower C'],
-    ['Jupiter Tower D Folder ID', jupiterTowerMap['D'], 'Folder ID for Jupiter Tower D'],
-    ['Jupiter Tower E Folder ID', jupiterTowerMap['E'], 'Folder ID for Jupiter Tower E'],
-    ['Association Documents Folder ID', assocFolderId, 'Folder ID for Association Documents'],
-    ['Court Proceedings Folder ID', courtFolderId, 'Folder ID for Court Proceedings'],
-    ['Skyview Master Register Spreadsheet ID', spreadsheetId, 'Spreadsheet ID for Skyview Master Register'],
-    ['Register Sheet Name', 'Register', 'Main legal document register sheet'],
-    ['Settings Sheet Name', 'Settings', 'Hidden system configuration sheet'],
-    ['Association Name', "Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association", 'Registered Association Name'],
-    ['Owner Account', ADMIN_EMAIL, 'Owner Google Workspace account'],
-    ['Initialized At', new Date().toISOString(), 'Repository creation timestamp'],
-    ['Initialized By', Session.getActiveUser().getEmail() || ADMIN_EMAIL, 'Administrator Account']
+    ['ROOT_FOLDER_ID', rootFolderId, 'Root ID for Skyview Legal Repository Drive folder'],
+    ['VENUS_FOLDER_ID', venusFolderId, 'Folder ID for Block Venus'],
+    ['FOLDER_VENUS_TOWER_A', venusTowerMap['A'], 'Folder ID for Venus Tower A'],
+    ['FOLDER_VENUS_TOWER_B', venusTowerMap['B'], 'Folder ID for Venus Tower B'],
+    ['FOLDER_VENUS_TOWER_C', venusTowerMap['C'], 'Folder ID for Venus Tower C'],
+    ['FOLDER_VENUS_TOWER_D', venusTowerMap['D'], 'Folder ID for Venus Tower D'],
+    ['JUPITER_FOLDER_ID', jupiterFolderId, 'Folder ID for Block Jupiter'],
+    ['FOLDER_JUPITER_TOWER_A', jupiterTowerMap['A'], 'Folder ID for Jupiter Tower A'],
+    ['FOLDER_JUPITER_TOWER_B', jupiterTowerMap['B'], 'Folder ID for Jupiter Tower B'],
+    ['FOLDER_JUPITER_TOWER_C', jupiterTowerMap['C'], 'Folder ID for Jupiter Tower C'],
+    ['FOLDER_JUPITER_TOWER_D', jupiterTowerMap['D'], 'Folder ID for Jupiter Tower D'],
+    ['FOLDER_JUPITER_TOWER_E', jupiterTowerMap['E'], 'Folder ID for Jupiter Tower E'],
+    ['FOLDER_ASSOCIATION_DOCS', assocFolderId, 'Folder ID for Association Documents'],
+    ['FOLDER_COURT_PROCEEDINGS', courtFolderId, 'Folder ID for Court Proceedings'],
+    ['MASTER_REGISTER_ID', spreadsheetId, 'Spreadsheet ID for Skyview Master Register'],
+    ['REGISTER_SHEET_NAME', SHEET_NAME_REGISTER, 'Main legal document register sheet'],
+    ['SETTINGS_SHEET_NAME', SHEET_NAME_SETTINGS, 'Hidden system configuration sheet'],
+    ['ASSOCIATION_NAME', ASSOCIATION_NAME, 'Registered Association Name'],
+    ['ADMIN_EMAIL', currentUserEmail, 'Administrator account authorized for dashboard & maintenance'],
+    ['OWNER_ACCOUNT', currentUserEmail, 'Owner Google Workspace account'],
+    ['INITIALIZED_AT', new Date().toISOString(), 'Repository creation timestamp'],
+    ['INITIALIZED_BY', currentUserEmail, 'Administrator Account that performed initialization']
   ];
   
   settingsSheet.getRange(1, 1, settingsData.length, 3).setValues(settingsData);
@@ -203,103 +239,111 @@ function initializeRepository() {
 }
 
 /**
- * Calculates statistics and retrieves all register records for the Admin Dashboard
- * @return {Object} Dashboard metrics and document records
+ * Returns data required by the Admin Dashboard: statistics, recent records, and repository configuration.
+ *
+ * @return {Object} Dashboard payload
  */
 function getAdminDashboardData() {
-  var records = getAllRegisterRecords();
+  if (!checkIsAdminUser()) {
+    var admin = getAdminEmail();
+    throw new Error('Unauthorized: Admin Dashboard access is restricted to ' + (admin || 'the authorized Administrator'));
+  }
+  var status = checkRepositoryStatus();
+  var defaultStats = {
+    totalMembers: 0,
+    totalSubmissions: 0,
+    totalUnits: 0,
+    totalDocuments: 0,
+    venusUnits: 0,
+    jupiterUnits: 0,
+    litigants: 0,
+    registeredOwners: 0
+  };
   
-  var membersSet = {};
-  var submissionsSet = {};
-  var unitsSet = {};
-  var venusUnitsSet = {};
-  var jupiterUnitsSet = {};
-  var litigantsSet = {};
-  var ownersSet = {};
+  if (!status.initialized) {
+    return {
+      status: status,
+      records: [],
+      stats: defaultStats,
+      statistics: defaultStats,
+      settings: []
+    };
+  }
+  
+  var records = getAllRegisterRecords();
+  var settings = getAllSettings();
+  
+  var submissionIds = {};
+  var uniqueMembers = {};
+  var uniqueUnits = {};
+  var venusUnits = {};
+  var jupiterUnits = {};
+  var litigantCount = 0;
+  var registeredOwnerCount = 0;
   
   for (var i = 0; i < records.length; i++) {
     var rec = records[i];
+    var subId = rec['Submission ID'];
+    if (subId) submissionIds[subId] = true;
     
-    // Distinct member identifier (Email or Mobile or Name)
-    var memberKey = (rec['Email'] || rec['Mobile'] || rec['Member Name']).toLowerCase().trim();
-    if (memberKey) {
-      membersSet[memberKey] = true;
-    }
+    var email = (rec['Email'] || rec['Member Name'] || '').toLowerCase().trim();
+    if (email) uniqueMembers[email] = true;
     
-    // Submissions
-    if (rec['Submission ID']) {
-      submissionsSet[rec['Submission ID']] = true;
-    }
+    var uCode = rec['Unit Code'] || '';
+    if (uCode) uniqueUnits[uCode] = true;
     
-    // Units
-    var unitCode = rec['Unit Code'];
-    if (unitCode) {
-      unitsSet[unitCode] = true;
-      var block = (rec['Block'] || '').toLowerCase();
-      if (block.indexOf('venus') !== -1 || unitCode.charAt(0) === 'V') {
-        venusUnitsSet[unitCode] = true;
-      } else if (block.indexOf('jupiter') !== -1 || unitCode.charAt(0) === 'J') {
-        jupiterUnitsSet[unitCode] = true;
-      }
-    }
+    var block = (rec['Block'] || '').toLowerCase();
+    if (block === 'venus' && uCode) venusUnits[uCode] = true;
+    if (block === 'jupiter' && uCode) jupiterUnits[uCode] = true;
     
-    // Legal status flags
     var legalStatus = (rec['Legal Status'] || '').toLowerCase();
-    if (legalStatus.indexOf('litigant') !== -1) {
-      litigantsSet[memberKey] = true;
-    }
-    if (legalStatus.indexOf('registered owner') !== -1) {
-      ownersSet[memberKey] = true;
-    }
+    if (legalStatus.indexOf('litigant') !== -1) litigantCount++;
+    if (legalStatus.indexOf('registered owner') !== -1) registeredOwnerCount++;
   }
   
-  var statistics = {
-    totalMembers: Object.keys(membersSet).length,
-    totalSubmissions: Object.keys(submissionsSet).length,
-    totalUnits: Object.keys(unitsSet).length,
+  var computedStats = {
+    totalMembers: Object.keys(uniqueMembers).length,
+    totalSubmissions: Object.keys(submissionIds).length,
+    totalUnits: Object.keys(uniqueUnits).length,
     totalDocuments: records.length,
-    venusUnits: Object.keys(venusUnitsSet).length,
-    jupiterUnits: Object.keys(jupiterUnitsSet).length,
-    litigants: Object.keys(litigantsSet).length,
-    registeredOwners: Object.keys(ownersSet).length
+    venusUnits: Object.keys(venusUnits).length,
+    jupiterUnits: Object.keys(jupiterUnits).length,
+    litigants: litigantCount,
+    registeredOwners: registeredOwnerCount
   };
   
-  var props = PropertiesService.getScriptProperties();
-  
   return {
-    statistics: statistics,
+    status: status,
     records: records,
-    rootFolderUrl: props.getProperty('ROOT_FOLDER_ID') ? DriveApp.getFolderById(props.getProperty('ROOT_FOLDER_ID')).getUrl() : '',
-    spreadsheetUrl: props.getProperty('MASTER_REGISTER_ID') ? SpreadsheetApp.openById(props.getProperty('MASTER_REGISTER_ID')).getUrl() : ''
+    stats: computedStats,
+    statistics: computedStats,
+    settings: settings,
+    rootFolderUrl: status.rootFolderUrl,
+    spreadsheetUrl: status.spreadsheetUrl
   };
 }
 
 /**
- * Generates CSV string of the entire Master Register for download
- * @return {string} CSV text
+ * Generates and returns a CSV string of all Master Register records
+ * @return {string}
  */
-function exportRegisterCsv() {
-  var sheet = getRegisterSheet();
-  var data = sheet.getDataRange().getValues();
-  if (!data || data.length === 0) return '';
+function exportRegisterAsCsv() {
+  var records = getAllRegisterRecords();
+  var lines = [];
   
-  var csvRows = [];
-  for (var r = 0; r < data.length; r++) {
-    var row = data[r];
-    var formattedRow = [];
-    for (var c = 0; c < row.length; c++) {
-      var cell = row[c];
-      if (cell instanceof Date) {
-        cell = Utilities.formatDate(cell, 'Asia/Kolkata', 'yyyy-MM-dd HH:mm:ss');
-      } else if (cell === null || cell === undefined) {
-        cell = '';
-      } else {
-        cell = cell.toString().replace(/"/g, '""');
-      }
-      formattedRow.push('"' + cell + '"');
-    }
-    csvRows.push(formattedRow.join(','));
+  // Header line
+  lines.push(REGISTER_COLUMNS.map(function(col) {
+    return '"' + col.replace(/"/g, '""') + '"';
+  }).join(','));
+  
+  for (var i = 0; i < records.length; i++) {
+    var rec = records[i];
+    var line = REGISTER_COLUMNS.map(function(col) {
+      var val = rec[col] || '';
+      return '"' + val.replace(/"/g, '""') + '"';
+    }).join(',');
+    lines.push(line);
   }
   
-  return csvRows.join('\r\n');
+  return lines.join('\r\n');
 }
