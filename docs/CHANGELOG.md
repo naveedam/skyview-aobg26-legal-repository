@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security & Email Receipt Hardening
 - **Server-Side Admin Dashboard Security Restriction (`Code.gs`, `Admin.gs`)**:
   - Restricts the Admin Dashboard and setup screens strictly on the server-side.
-  - Access is granted only when `Session.getActiveUser().getEmail()` equals `ADMIN_EMAIL` (`skyviewaobg26@gmail.com`).
+  - Access is granted only when `Session.getActiveUser().getEmail()` equals `ADMIN_EMAIL` (the account captured during repository initialization).
   - Any unauthorized or non-admin access attempt is intercepted and immediately redirected to the Member Portal.
   - Server-side RPC methods `getAdminDashboardData()` and `initializeRepository()` strictly reject non-admin invocations.
 - **Gmail Confirmation Email Receipt (`Upload.gs`)**:

@@ -36,9 +36,6 @@ var MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 /** Standard timezone for all association records */
 var TIMEZONE = 'Asia/Kolkata';
 
-/** Default Administrator Email */
-var DEFAULT_ADMIN_EMAIL = 'ieskyview.association@gmail.com';
-
 /**
  * 17 Standardized Columns for the Master Register
  */
@@ -70,7 +67,7 @@ var REGISTER_COLUMNS = [
  * Dynamically retrieves the authorized administrator email address.
  * Reads from the hidden Settings sheet / Script Properties.
  *
- * @return {string} Configured admin email address in lowercase, or ieskyview.association@gmail.com.
+ * @return {string} Configured admin email address in lowercase, or empty string if not yet initialized.
  */
 function getAdminEmail() {
   try {
@@ -89,7 +86,7 @@ function getAdminEmail() {
   } catch (e) {
     Logger.log('Error reading dynamic ADMIN_EMAIL: ' + e);
   }
-  return DEFAULT_ADMIN_EMAIL;
+  return '';
 }
 
 /**
@@ -97,7 +94,7 @@ function getAdminEmail() {
  * 
  * Rules:
  * 1. Admin Dashboard should ONLY be available after initialization.
- * 2. After initialization, only the stored ADMIN_EMAIL (ieskyview.association@gmail.com)
+ * 2. After initialization, only the stored ADMIN_EMAIL detected during initialization
  *    is authorized to access the Admin Dashboard.
  *
  * @return {boolean}
@@ -107,6 +104,11 @@ function checkIsAdminUser() {
     var status = checkRepositoryStatus();
     if (!status.initialized) {
       // Admin dashboard is only available after initialization
+      return false;
+    }
+
+    var configuredAdmin = getAdminEmail().toLowerCase().trim();
+    if (!configuredAdmin) {
       return false;
     }
 
@@ -122,14 +124,9 @@ function checkIsAdminUser() {
     }
     activeEmail = activeEmail.toLowerCase().trim();
     
-    var configuredAdmin = getAdminEmail().toLowerCase().trim();
-    if (!configuredAdmin) {
-      return false;
-    }
-    
     return activeEmail === configuredAdmin;
   } catch (e) {
-    Logger.log('Admin authorization check exception: ' + e);
+    Logger.log('Error checking admin user: ' + e);
     return false;
   }
 }

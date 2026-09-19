@@ -21,7 +21,7 @@
  *
  * 2. POST-INITIALIZATION ROUTING:
  *    - Defaults to Member Portal (index.html)
- *    - ?page=admin routes to Admin Dashboard (admin.html) for authorized admin (ieskyview.association@gmail.com)
+ *    - ?page=admin routes to Admin Dashboard (admin.html) for authorized admin
  *    - ?page=portal explicitly routes to Member Portal
  *
  * @param {Object} e HTTP GET event parameters
@@ -38,8 +38,9 @@ function doGet(e) {
     // If Settings sheet does not exist, automatically display Administrator Setup screen
     if (!status.initialized) {
       var setupTemplate = getHtmlTemplate('admin');
-      setupTemplate.isAdmin = true;
+      setupTemplate.isAdmin = false;
       setupTemplate.userEmail = '';
+      setupTemplate.adminEmail = '';
       setupTemplate.requestedPage = 'setup';
       setupTemplate.isSetupMode = true;
       setupTemplate.repoStatus = status;
@@ -82,6 +83,7 @@ function doGet(e) {
     var template = getHtmlTemplate(templateName);
     template.isAdmin = isAdmin;
     template.userEmail = userEmail;
+    template.adminEmail = adminEmailNormalized;
     template.requestedPage = (templateName === 'admin') ? 'admin' : 'portal';
     template.isSetupMode = false;
     template.repoStatus = status;

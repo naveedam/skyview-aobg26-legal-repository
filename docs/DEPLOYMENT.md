@@ -2,7 +2,7 @@
 
 **Target GitHub Repository:** [`naveedam/skyview-aobg26-legal-repository`](https://github.com/naveedam/skyview-aobg26-legal-repository)  
 **Association:** Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association  
-**Administrator Account:** `ieskyview.association@gmail.com`
+**Administrator Account:** Dynamically assigned to whichever Google Account executes initialization
 
 ---
 
@@ -17,10 +17,7 @@ Follow these exact steps to deploy the repository from GitHub into production:
 
 ### Step 1: Create a New Google Apps Script Project
 1. Open your browser and navigate to **[script.google.com](https://script.google.com)**.
-2. Ensure you are signed in using the official association Google account:
-   ```
-   ieskyview.association@gmail.com
-   ```
+2. Ensure you are signed in using the official association Google account.
 3. Click **New project** (+ button in top-left).
 4. Rename the project from *"Untitled project"* to:
    ```
@@ -79,7 +76,7 @@ If not using the clasp CLI:
 ### Step 4: Execute As: Me
 1. Under **Execute as**, select:
    ```
-   Me (ieskyview.association@gmail.com)
+   Me (your association Google account)
    ```
    *This ensures that member file uploads and sheet append operations execute with the association's Google Drive storage quota.*
 
@@ -130,7 +127,7 @@ If not using the clasp CLI:
 
 | Step | Item | Status |
 | :--- | :--- | :---: |
-| 1 | Google Apps Script project created under `ieskyview.association@gmail.com` | [ ] |
+| 1 | Google Apps Script project created under the Association Google Account | [ ] |
 | 2 | All 6 `.gs` scripts, 4 `.html` templates, and `appsscript.json` loaded | [ ] |
 | 3 | Web app deployed with `Execute as: Me` and `Access: Anyone` | [ ] |
 | 4 | First-run setup executed and Drive hierarchy verified | [ ] |

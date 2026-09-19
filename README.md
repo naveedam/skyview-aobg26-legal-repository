@@ -1,6 +1,6 @@
 # Skyview AOBG26 Legal Repository
 ## Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
-**Administrator Account:** `ieskyview.association@gmail.com`
+**Administrator Account:** Dynamically assigned to the executing Gmail account during initialization
 
 ---
 
@@ -23,7 +23,7 @@ When the administrator clicks **"Initialize Skyview Repository"** on the setup s
 - Creates `Skyview Master Register` Google Sheet.
 - Creates formatted `Register` sheet with 17 standardized columns and Association teal styling.
 - Creates hidden `Settings` sheet.
-- Stores all folder IDs, spreadsheet ID, initialization timestamp, and the administrator email (`ieskyview.association@gmail.com`) inside Settings.
+- Stores all folder IDs, spreadsheet ID, initialization timestamp, and the dynamically detected administrator email inside Settings.
 - Marks repository as initialized.
 - **Redirects automatically to the Member Portal**.
 
@@ -31,8 +31,8 @@ When the administrator clicks **"Initialize Skyview Repository"** on the setup s
 
 ## 2. Security & Zero-Code Modifications
 - **Never hardcode folder IDs**: All folder and spreadsheet IDs are resolved dynamically from the hidden `Settings` sheet.
-- **No source code edits after deployment**: The application is driven entirely by the `Settings` sheet.
-- **Admin Dashboard restricted after initialization**: Accessible via `?page=admin` strictly to the authorized administrator (`ieskyview.association@gmail.com`).
+- **No source code edits after deployment**: The application is driven entirely by the `Settings` sheet and is portable to any Association Gmail account.
+- **Admin Dashboard restricted after initialization**: Accessible via `?page=admin` strictly to the stored administrator email detected during initialization.
 - **No Apps Script editor execution**: The Association President never needs to open `script.google.com`, run functions from the editor, or configure script triggers.
 
 ---
@@ -69,7 +69,7 @@ Or paste the files into a new project at [script.google.com](https://script.goog
 1. Click **Deploy** > **New deployment**.
 2. Select type: **Web app**.
 3. Configuration:
-   - **Execute as**: **`Me (ieskyview.association@gmail.com)`**
+   - **Execute as**: **`Me (your association Google account)`**
    - **Who has access**: **`Anyone`**
 4. Click **Deploy** and copy the Web App URL.
 

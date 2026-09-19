@@ -17,7 +17,11 @@
           <h1 class="app-title">Skyview AOBG26 Legal Repository</h1>
         </div>
         <div class="header-nav">
-          <? if (typeof status !== 'undefined' && status.initialized) { ?>
+          <?
+            var status = (typeof repoStatus !== 'undefined' && repoStatus) ? repoStatus : checkRepositoryStatus();
+            var currentAdminEmail = (status.initialized && typeof getAdminEmail === 'function') ? getAdminEmail() : '';
+          ?>
+          <? if (status.initialized) { ?>
             <a href="?page=portal" class="nav-link-btn">
               <span>📋</span> Member Upload Portal
             </a>
@@ -32,7 +36,11 @@
         </div>
       </div>
       <p class="app-subtitle">
-        Association Advocates & Admin Console • Authorized Administrator: <strong><?= getAdminEmail() ?></strong>
+        <? if (status.initialized && currentAdminEmail) { ?>
+          Association Advocates & Admin Console • Authorized Administrator: <strong><?= currentAdminEmail ?></strong>
+        <? } else { ?>
+          Association Advocates & Admin Console • Repository Provisioning & Deployment
+        <? } ?>
       </p>
     </div>
   </header>
@@ -40,7 +48,6 @@
   <main class="main-content">
 
     <?
-      var status = checkRepositoryStatus();
       if (!status.initialized) {
     ?>
       <!-- FIRST RUN EXPERIENCE: Setup Screen -->
@@ -70,7 +77,7 @@
         </div>
 
         <div style="margin-bottom: 20px; padding: 12px 16px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; font-size: 0.9rem; color: #166534; text-align: left;">
-          <strong>Zero-Config Production Guarantee:</strong> All folder IDs, spreadsheet configuration, and administrator credentials (<code>ieskyview.association@gmail.com</code>) will be recorded automatically in the hidden Settings sheet. No manual script editing or editor execution is ever required.
+          <strong>Zero-Config Production Guarantee:</strong> All folder IDs, spreadsheet configuration, and administrator ownership will be recorded automatically in the hidden Settings sheet using the executing Gmail account. No manual script editing or editor execution is ever required.
         </div>
 
         <!-- Prominent Warning Card with Yellow/Amber Accent and Warning Icon -->

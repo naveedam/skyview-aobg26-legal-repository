@@ -129,7 +129,7 @@ function checkRepositoryStatus() {
  * 6. Create the Skyview Master Register Google Sheet.
  * 7. Create a hidden Settings sheet.
  * 8. Store all folder IDs, spreadsheet ID, initialization timestamp, and the
- *    administrator email (ieskyview.association@gmail.com) inside Settings.
+ *    administrator email detected from the executing Gmail session inside Settings.
  * 9. Mark the repository as initialized.
  * 10. Automatically redirect to the Member Portal.
  *
@@ -145,20 +145,33 @@ function initializeRepository() {
       rootFolderUrl: status.rootFolderUrl,
       spreadsheetId: status.spreadsheetId,
       spreadsheetUrl: status.spreadsheetUrl,
+      adminEmail: status.adminEmail,
       redirectUrl: '?page=portal'
     };
   }
 
-  var targetAdminEmail = 'ieskyview.association@gmail.com';
-  var userSessionEmail = '';
+  // Detect the signed-in Gmail account executing the Apps Script
+  var targetAdminEmail = '';
   try {
-    userSessionEmail = Session.getActiveUser().getEmail() || '';
-  } catch (sessionErr) {
-    Logger.log('Session email during setup: ' + sessionErr);
+    targetAdminEmail = Session.getEffectiveUser().getEmail() || '';
+  } catch (effectiveErr) {
+    Logger.log('Effective user detection error: ' + effectiveErr);
+  }
+  
+  if (!targetAdminEmail) {
+    try {
+      targetAdminEmail = Session.getActiveUser().getEmail() || '';
+    } catch (activeErr) {
+      Logger.log('Active user detection error: ' + activeErr);
+    }
   }
 
+  targetAdminEmail = (targetAdminEmail || '').toLowerCase().trim();
+
   var props = PropertiesService.getScriptProperties();
-  props.setProperty('ADMIN_EMAIL', targetAdminEmail);
+  if (targetAdminEmail) {
+    props.setProperty('ADMIN_EMAIL', targetAdminEmail);
+  }
   
   // 1. Create Root Folder: "Skyview Legal Repository"
   var rootFolder = DriveApp.createFolder(ROOT_FOLDER_NAME);
@@ -249,7 +262,7 @@ function initializeRepository() {
   registerSheet.setColumnWidth(17, 260); // Drive Link
   
   // 7. Setup hidden "Settings" Sheet
-  // Store all folder IDs, spreadsheet ID, initialization timestamp, and the administrator email (ieskyview.association@gmail.com) inside Settings
+  // Store all folder IDs, spreadsheet ID, initialization timestamp, and detected administrator email inside Settings
   var settingsSheet = spreadsheet.insertSheet(SHEET_NAME_SETTINGS);
   var initTimestamp = new Date().toISOString();
   var settingsData = [
@@ -274,7 +287,7 @@ function initializeRepository() {
     ['ASSOCIATION_NAME', ASSOCIATION_NAME, 'Registered Association Name'],
     ['ADMIN_EMAIL', targetAdminEmail, 'Administrator email authorized for dashboard & maintenance'],
     ['INITIALIZED_AT', initTimestamp, 'Repository creation timestamp'],
-    ['INITIALIZED_BY', userSessionEmail || targetAdminEmail, 'Administrator account that initialized repository'],
+    ['INITIALIZED_BY', targetAdminEmail, 'Administrator account that initialized repository'],
     ['INITIALIZED', 'true', 'Repository initialization flag']
   ];
   
@@ -292,6 +305,7 @@ function initializeRepository() {
     rootFolderUrl: rootFolder.getUrl(),
     spreadsheetId: spreadsheetId,
     spreadsheetUrl: spreadsheet.getUrl(),
+    adminEmail: targetAdminEmail,
     redirectUrl: '?page=portal'
   };
 }

@@ -3,7 +3,7 @@
 **Official Legal Document Repository & Case Management System**  
 *Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association*  
 *Repository: [`naveedam/skyview-aobg26-legal-repository`](https://github.com/naveedam/skyview-aobg26-legal-repository)*  
-*Owner Account: `skyviewaobg26@gmail.com`*
+*Owner Account: Dynamically set to the executing Gmail account during initialization*
 
 ---
 
@@ -30,7 +30,7 @@ All incoming files are dynamically validated, assigned sequential submission IDs
 - **Master Register Spreadsheet**: Pre-formatted with Association teal headers (`#0F766E`), frozen rows, formatted timestamps, and column widths across all 17 attributes.
 - **Hidden Settings Sheet**: Securely persists all provisioned Folder IDs, Sheet IDs, and association configurations directly inside Google Sheets, eliminating code changes when migrating folders.
 - **Live Administrator Dashboard**: Real-time analytical cards, instant cross-field search, multi-attribute filtering (Block, Tower, Document Type), direct Drive links, and single-click CSV export.
-- **Server-Side Security Restriction**: Admin Dashboard access is restricted on the server-side to the Association Administrator account (`ADMIN_EMAIL: skyviewaobg26@gmail.com`). Unauthorized visits are redirected to the Member Portal.
+- **Server-Side Security Restriction**: Admin Dashboard access is restricted on the server-side to the Association Administrator account recorded in `ADMIN_EMAIL`. Unauthorized visits are redirected to the Member Portal.
 - **Automated Gmail Confirmation Receipts**: Automatically dispatches an official confirmation receipt via Gmail to the member after every successful upload with Subject `Skyview Repository Submission Received – {Submission ID}`, containing Submission ID, Member Name, Units Submitted, Number of Documents, and Timestamp.
 
 ---
@@ -102,7 +102,7 @@ When initialized, the platform automatically provisions the following directory 
 ## 6. Workflows
 
 ### Administrator Workflow
-1. Log in with the association owner account (`skyviewaobg26@gmail.com`).
+1. Log in with the Association Google account.
 2. Access the deployed Web App URL.
 3. If uninitialized, the platform automatically displays the **Administrator Setup Screen**.
 4. Click **Initialize Skyview Repository**; all Google Drive folders and the Master Register spreadsheet are provisioned in ~5 seconds.
