@@ -1,106 +1,85 @@
 # Skyview AOBG26 Legal Repository
 ## Skyview Allottees cum Prospective Buyers & Litigants' Welfare Association
-**Owner Account:** `skyviewaobg26@gmail.com`
+**Administrator Account:** `ieskyview.association@gmail.com`
 
 ---
 
-## 1. Project Overview & Architecture
+## 1. Zero-Configuration Production Objective
 
-This repository contains the complete production-ready Google Apps Script (GAS) application to securely organize and index property and legal documents submitted by association members directly inside Google Drive and Google Sheets without external databases or servers.
+The deployed Web App requires **zero manual execution of Apps Script functions** in the code editor. The only deliverable the Association President receives is the **live Web App URL**.
 
-### Directory & File Structure
+### First-Run Autonomous Behavior
+1. **Self-Introspection via Settings Sheet**: On every page load, the application inspects whether the repository has already been initialized by looking for the hidden `Settings` sheet inside the `Skyview Master Register` spreadsheet.
+2. **Automatic First-Run Setup Interception**: If the `Settings` sheet does NOT exist, the app automatically presents the **Administrator Setup screen** to initialize the repository.
+3. **Automatic Member Portal Delivery**: As soon as the `Settings` sheet exists, opening the Web App automatically displays the **Member Portal**.
+
+### One-Time Self-Initialization
+When the administrator clicks **"Initialize Skyview Repository"** on the setup screen:
+- Creates root Google Drive folder: `Skyview Legal Repository`.
+- Creates `Block Venus` with Tower `A`, `B`, `C`, `D`.
+- Creates `Block Jupiter` with Tower `A`, `B`, `C`, `D`, `E`.
+- Creates `Association Documents` folder.
+- Creates `Court Proceedings` folder.
+- Creates `Skyview Master Register` Google Sheet.
+- Creates formatted `Register` sheet with 17 standardized columns and Association teal styling.
+- Creates hidden `Settings` sheet.
+- Stores all folder IDs, spreadsheet ID, initialization timestamp, and the administrator email (`ieskyview.association@gmail.com`) inside Settings.
+- Marks repository as initialized.
+- **Redirects automatically to the Member Portal**.
+
+---
+
+## 2. Security & Zero-Code Modifications
+- **Never hardcode folder IDs**: All folder and spreadsheet IDs are resolved dynamically from the hidden `Settings` sheet.
+- **No source code edits after deployment**: The application is driven entirely by the `Settings` sheet.
+- **Admin Dashboard restricted after initialization**: Accessible via `?page=admin` strictly to the authorized administrator (`ieskyview.association@gmail.com`).
+- **No Apps Script editor execution**: The Association President never needs to open `script.google.com`, run functions from the editor, or configure script triggers.
+
+---
+
+## 3. Directory & File Structure (clasp push compatible)
 ```text
-├── appsscript.json   # Project manifest, execution settings, OAuth scopes, Asia/Kolkata timezone
-├── Code.gs           # Web App routing, HTML Service template inclusion, config provider
-├── Admin.gs          # First-run initialization, stats aggregation, search queries, CSV export
-├── Drive.gs          # Folder hierarchy navigator, automatic unit folder creation, file persistence
-├── Upload.gs         # Member submission processor, file validations, batch sheet appending
-├── Sheet.gs          # Master Register spreadsheet management, row reader/appender, Settings sheet
-├── Utils.gs          # Unit code generation (VA-1204), standardized naming, atomic submission ID
-├── index.html        # Member Upload Portal responsive template
-├── admin.html        # Administrator Dashboard & First-Run Setup template
-├── styles.html       # Material-inspired responsive CSS (Primary #0F766E, Secondary #2563EB)
-└── scripts.html      # Client-side JavaScript (dynamic unit cards, file reader, RPC handlers)
+google-apps-script/
+├── appsscript.json   # Project manifest with USER_DEPLOYING, ANYONE access, scopes
+├── Code.gs           # Zero-config router (doGet) checking Settings sheet
+├── Admin.gs          # checkRepositoryStatus, initializeRepository, stats, CSV export
+├── Drive.gs          # Dynamic folder hierarchy & unit folder locator
+├── Upload.gs         # Member upload processor, multi-unit validation, Gmail receipts
+├── Sheet.gs          # Master Register and hidden Settings sheet management
+├── Utils.gs          # Unit formatting (VA-1204), standardized naming, admin getter
+├── index.html        # Member Portal responsive UI
+├── admin.html        # Admin Dashboard & First-Run Setup UI
+├── styles.html       # Institutional stylesheet (Teal #0F766E, Slate)
+└── scripts.html      # Client script, dynamic units, base64 reader, auto-redirect
 ```
 
 ---
 
-## 2. Required Authorization Scopes
+## 4. Deployment Guide
 
-In `appsscript.json`:
-- `https://www.googleapis.com/auth/drive`: Required to create the repository folders, generate Tower & Unit folders (`VA-1204`, etc.), and write uploaded legal documents.
-- `https://www.googleapis.com/auth/spreadsheets`: Required to create and update the `Skyview Master Register` spreadsheet and the hidden `Settings` sheet.
-- `https://www.googleapis.com/auth/userinfo.email`: Required to identify the administrator (`skyviewaobg26@gmail.com`) and secure access to the dashboard.
+### Step 1: Deploy with clasp or paste into Apps Script
+```bash
+# Optional: deploy via clasp
+cd google-apps-script
+clasp push
+```
+Or paste the files into a new project at [script.google.com](https://script.google.com/).
 
----
+### Step 2: Deploy as Web App
+1. Click **Deploy** > **New deployment**.
+2. Select type: **Web app**.
+3. Configuration:
+   - **Execute as**: **`Me (ieskyview.association@gmail.com)`**
+   - **Who has access**: **`Anyone`**
+4. Click **Deploy** and copy the Web App URL.
 
-## 3. Step-by-Step Deployment Instructions
-
-### Step 1: Open Google Apps Script
-1. Log in to your Google account: **`skyviewaobg26@gmail.com`**.
-2. Navigate to [script.google.com](https://script.google.com/) and click **"New project"**.
-3. Rename the project to: **`Skyview AOBG26 Legal Repository`**.
-
-### Step 2: Enable Manifest View
-1. In the left sidebar of the Apps Script editor, click **Project Settings** (gear icon ⚙️).
-2. Check the box: **"Show 'appsscript.json' manifest file in editor"**.
-3. Click the **Editor** icon (`< >`) in the sidebar.
-
-### Step 3: Add the Source Files
-Copy the contents of each file from this repository into your Apps Script project:
-1. **`appsscript.json`**: Replace the entire contents with `appsscript.json`.
-2. **`Code.gs`**: Replace `Code.gs` with the content from `Code.gs`.
-3. Create new Script files (`+` > **Script**):
-   - `Admin.gs`
-   - `Drive.gs`
-   - `Upload.gs`
-   - `Sheet.gs`
-   - `Utils.gs`
-4. Create new HTML files (`+` > **HTML**):
-   - `index.html`
-   - `admin.html`
-   - `styles.html`
-   - `scripts.html`
-   *(Note: in Apps Script, omit the `.html` extension when typing the filename).*
-
-### Step 4: Authorize and Test Initial Run
-1. In `Code.gs` or `Admin.gs`, select `checkRepositoryStatus` or `initializeRepository` from the function dropdown at the top.
-2. Click **Run**.
-3. Google will prompt: **"Authorization required"**. Click **Review permissions**.
-4. Select `skyviewaobg26@gmail.com`.
-5. Click **Advanced** > **Go to Skyview AOBG26 Legal Repository (unsafe)**.
-6. Click **Allow** to grant Drive and Sheets permissions.
-
-### Step 5: Publish as a Web App
-1. At the top right of the Apps Script editor, click **Deploy** > **New deployment**.
-2. Click the gear icon next to "Select type" and choose **Web app**.
-3. Configure the deployment parameters:
-   - **Description**: `Skyview AOBG26 Legal Repository v1.0 Production`
-   - **Execute as**: **`Me (skyviewaobg26@gmail.com)`**  
-     *(CRITICAL: By executing as "Me", the script writes files to the Association's private Drive while keeping the Drive folders completely hidden and inaccessible to individual members).*
-   - **Who has access**: **`Anyone`**  
-     *(Allows all association members to submit documents without needing access to the Association's Google Drive).*
-4. Click **Deploy**.
-5. Copy the **Web App URL** provided.
-
----
-
-## 4. How the Administrator Initializes the Repository
-
-1. Open the Web App URL in your browser while logged into `skyviewaobg26@gmail.com` or append `?page=admin` to the URL:
-   `https://script.google.com/macros/s/.../exec?page=admin`
-2. Since this is the first run, the screen will display the **First-Run Repository Initialization** panel.
-3. Click **"Initialize Skyview Repository"**.
-4. Within a few seconds, Apps Script automatically creates:
-   - Google Drive Root Folder: `Skyview Legal Repository`
-   - `Block Venus` with `Tower A`, `Tower B`, `Tower C`, `Tower D`
-   - `Block Jupiter` with `Tower A`, `Tower B`, `Tower C`, `Tower D`, `Tower E`
-   - `Association Documents`
-   - `Court Proceedings`
-   - Google Spreadsheet: `Skyview Master Register`
-   - Formatted `Register` sheet with frozen header row and custom teal styling
-   - Hidden `Settings` sheet saving all Folder IDs and Spreadsheet IDs.
-5. The Admin Dashboard will instantly refresh and display the 8 statistics cards and the searchable master register table!
+### Step 3: Deliver to Association President
+Send the Web App URL to the Association President.
+- On first click, the setup screen appears automatically because the hidden `Settings` sheet does not exist yet.
+- The President clicks **"Initialize Skyview Repository"**.
+- All Drive folders, towers, spreadsheets, and Settings are built in seconds.
+- The browser automatically redirects to the Member Portal!
+- The Association President never touches Apps Script source code or the script editor.
 
 ---
 

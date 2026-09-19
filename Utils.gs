@@ -36,6 +36,9 @@ var MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 /** Standard timezone for all association records */
 var TIMEZONE = 'Asia/Kolkata';
 
+/** Default Administrator Email */
+var DEFAULT_ADMIN_EMAIL = 'ieskyview.association@gmail.com';
+
 /**
  * 17 Standardized Columns for the Master Register
  */
@@ -67,7 +70,7 @@ var REGISTER_COLUMNS = [
  * Dynamically retrieves the authorized administrator email address.
  * Reads from the hidden Settings sheet / Script Properties.
  *
- * @return {string} Configured admin email address in lowercase, or empty string if not yet set.
+ * @return {string} Configured admin email address in lowercase, or ieskyview.association@gmail.com.
  */
 function getAdminEmail() {
   try {
@@ -86,22 +89,27 @@ function getAdminEmail() {
   } catch (e) {
     Logger.log('Error reading dynamic ADMIN_EMAIL: ' + e);
   }
-  return '';
+  return DEFAULT_ADMIN_EMAIL;
 }
 
 /**
  * Checks whether the active user session is the authorized Administrator.
  * 
  * Rules:
- * 1. If repository is not yet initialized, returns true for the first logged-in user
- *    to allow one-time setup and initialization.
- * 2. After initialization, only the stored ADMIN_EMAIL read dynamically from
- *    the Settings sheet is authorized.
+ * 1. Admin Dashboard should ONLY be available after initialization.
+ * 2. After initialization, only the stored ADMIN_EMAIL (ieskyview.association@gmail.com)
+ *    is authorized to access the Admin Dashboard.
  *
  * @return {boolean}
  */
 function checkIsAdminUser() {
   try {
+    var status = checkRepositoryStatus();
+    if (!status.initialized) {
+      // Admin dashboard is only available after initialization
+      return false;
+    }
+
     var activeEmail = '';
     try {
       activeEmail = Session.getActiveUser().getEmail() || '';
@@ -114,13 +122,7 @@ function checkIsAdminUser() {
     }
     activeEmail = activeEmail.toLowerCase().trim();
     
-    var status = checkRepositoryStatus();
-    if (!status.initialized) {
-      // First-run uninitialized state: allow the logged-in user to perform setup
-      return true;
-    }
-    
-    var configuredAdmin = getAdminEmail();
+    var configuredAdmin = getAdminEmail().toLowerCase().trim();
     if (!configuredAdmin) {
       return false;
     }

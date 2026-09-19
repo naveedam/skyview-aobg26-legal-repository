@@ -12,13 +12,16 @@
  * Handles all incoming GET requests to the Web Application.
  *
  * Routing Rules:
- * 1. FIRST-RUN AUTO-DETECTION:
- *    If checkRepositoryStatus().initialized === false, automatically intercepts
- *    the request and routes directly to the Administrator Setup screen.
+ * 1. ZERO-CONFIG FIRST-RUN AUTO-DETECTION:
+ *    Checks whether the repository has already been initialized by looking for the
+ *    hidden Settings sheet inside the Master Register (without using Session.getActiveUser()
+ *    or Session.getEffectiveUser() to determine whether setup is required).
+ *    - If the Settings sheet does not exist: automatically display the Administrator Setup screen.
+ *    - If the Settings sheet exists: automatically display the Member Portal.
  *
  * 2. POST-INITIALIZATION ROUTING:
  *    - Defaults to Member Portal (index.html)
- *    - ?page=admin routes to Admin Dashboard (admin.html)
+ *    - ?page=admin routes to Admin Dashboard (admin.html) for authorized admin (ieskyview.association@gmail.com)
  *    - ?page=portal explicitly routes to Member Portal
  *
  * @param {Object} e HTTP GET event parameters
@@ -26,82 +29,68 @@
  */
 function doGet(e) {
   try {
+    // 1. Check whether repository has already been initialized by looking for
+    // the hidden Settings sheet inside the Master Register.
+    // Do NOT use Session.getActiveUser() or Session.getEffectiveUser() to determine setup.
     var status = checkRepositoryStatus();
-    var page = (e && e.parameter && e.parameter.page) ? e.parameter.page.toLowerCase() : 'portal';
+    var page = (e && e.parameter && e.parameter.page) ? e.parameter.page.toLowerCase() : '';
+
+    // If Settings sheet does not exist, automatically display Administrator Setup screen
+    if (!status.initialized) {
+      var setupTemplate = getHtmlTemplate('admin');
+      setupTemplate.isAdmin = true;
+      setupTemplate.userEmail = '';
+      setupTemplate.requestedPage = 'setup';
+      setupTemplate.isSetupMode = true;
+      setupTemplate.repoStatus = status;
+
+      var setupOutput = setupTemplate.evaluate();
+      setupOutput.setTitle('Skyview AOBG26 Legal Repository - Administrator Setup');
+      setupOutput.addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+      setupOutput.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      return setupOutput;
+    }
+
+    // If Settings sheet exists, determine user role and page routing
     var userEmail = '';
     try {
       userEmail = Session.getActiveUser().getEmail() || '';
     } catch (sessionErr) {
-      Logger.log('Could not determine active user email: ' + sessionErr);
+      Logger.log('Active user session check: ' + sessionErr);
     }
 
-    // Dynamic admin authorization: reads ADMIN_EMAIL dynamically from Settings sheet
     var activeUserEmailNormalized = userEmail.toLowerCase().trim();
-    var adminEmailNormalized = getAdminEmail();
+    var adminEmailNormalized = getAdminEmail().toLowerCase().trim();
     var isAdmin = (activeUserEmailNormalized !== '' && adminEmailNormalized !== '' && activeUserEmailNormalized === adminEmailNormalized);
-    
-    // 1. FIRST-RUN DETECTION:
-    // If repository has not been initialized in Google Drive / Sheets
-    if (!status.initialized) {
-      // If the repository is not initialized yet, allow initialization by the first logged-in user only.
-      if (activeUserEmailNormalized !== '') {
-        var setupTemplate = getHtmlTemplate('admin');
-        setupTemplate.isAdmin = true;
-        setupTemplate.userEmail = userEmail;
-        setupTemplate.requestedPage = 'setup';
-        setupTemplate.isSetupMode = true;
-        setupTemplate.repoStatus = status;
-        
-        var setupOutput = setupTemplate.evaluate();
-        setupOutput.setTitle('Skyview AOBG26 Legal Repository - Administrator Setup');
-        setupOutput.addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
-        setupOutput.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-        return setupOutput;
-      } else {
-        // Anonymous / unauthenticated session when uninitialized - show Member Portal with sign-in guidance
-        var uninitTemplate = getHtmlTemplate('index');
-        uninitTemplate.isAdmin = false;
-        uninitTemplate.userEmail = '';
-        uninitTemplate.requestedPage = 'portal';
-        uninitTemplate.isSetupMode = false;
-        uninitTemplate.repoStatus = status;
-        uninitTemplate.accessNotice = 'Repository setup must be initialized by an authenticated Google Workspace user.';
-        
-        var uninitOutput = uninitTemplate.evaluate();
-        uninitOutput.setTitle('Skyview AOBG26 Legal Repository - Member Portal');
-        uninitOutput.addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
-        uninitOutput.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-        return uninitOutput;
-      }
-    }
-    
-    // 2. SERVER-SIDE RESTRICTION FOR ADMIN DASHBOARD:
-    // After initialization, only the stored ADMIN_EMAIL read from the Settings sheet may access.
-    // Otherwise redirect to the Member Portal.
+
+    // Admin Dashboard should only be available after initialization and for authorized admin
     if (page === 'admin') {
       if (!isAdmin) {
-        Logger.log('Unauthorized Admin Dashboard access attempt from: ' + (userEmail || 'Anonymous') + ' - Redirecting to Member Portal.');
+        Logger.log('Non-admin access to ?page=admin redirected to Member Portal.');
         page = 'portal';
       }
+    } else {
+      // If the Settings sheet exists, automatically display the Member Portal
+      page = 'portal';
     }
-    
+
     var templateName = (page === 'admin' && isAdmin) ? 'admin' : 'index';
     var title = (templateName === 'admin')
       ? 'Skyview AOBG26 Legal Repository - Admin Dashboard'
       : 'Skyview AOBG26 Legal Repository - Member Portal';
-    
+
     var template = getHtmlTemplate(templateName);
     template.isAdmin = isAdmin;
     template.userEmail = userEmail;
     template.requestedPage = (templateName === 'admin') ? 'admin' : 'portal';
     template.isSetupMode = false;
     template.repoStatus = status;
-    
+
     var htmlOutput = template.evaluate();
     htmlOutput.setTitle(title);
     htmlOutput.addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
     htmlOutput.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    
+
     return htmlOutput;
   } catch (err) {
     Logger.log('Fatal error in doGet: ' + err);

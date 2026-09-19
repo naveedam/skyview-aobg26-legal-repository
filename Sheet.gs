@@ -85,6 +85,15 @@ function getSetting(key) {
   // 2. Authoritative lookup from hidden Settings sheet
   try {
     var sheetId = props.getProperty('MASTER_REGISTER_ID');
+    if (!sheetId) {
+      try {
+        var files = DriveApp.getFilesByName(SPREADSHEET_NAME);
+        if (files.hasNext()) {
+          sheetId = files.next().getId();
+          props.setProperty('MASTER_REGISTER_ID', sheetId);
+        }
+      } catch (dErr) {}
+    }
     if (sheetId) {
       var ss = SpreadsheetApp.openById(sheetId);
       var settingsSheet = ss.getSheetByName(SHEET_NAME_SETTINGS);

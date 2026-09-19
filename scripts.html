@@ -62,6 +62,14 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Admin portal initialization
   var adminInitBtn = document.getElementById('initRepoBtn');
+  var confirmInitCheckbox = document.getElementById('confirmInitCheckbox');
+  if (confirmInitCheckbox && adminInitBtn) {
+    adminInitBtn.disabled = !confirmInitCheckbox.checked;
+    confirmInitCheckbox.addEventListener('change', function() {
+      adminInitBtn.disabled = !this.checked;
+    });
+  }
+
   if (adminInitBtn) {
     adminInitBtn.addEventListener('click', handleInitializeRepository);
   }
@@ -538,6 +546,12 @@ function resetFormAfterSuccess() {
  * Administrator Actions
  */
 function handleInitializeRepository() {
+  var confirmCheckbox = document.getElementById('confirmInitCheckbox');
+  if (confirmCheckbox && !confirmCheckbox.checked) {
+    alert('Please confirm authorization before initializing the repository.');
+    return;
+  }
+
   var btn = document.getElementById('initRepoBtn');
   var spinner = document.getElementById('initSpinner');
   var statusText = document.getElementById('initStatusText');
@@ -554,18 +568,21 @@ function handleInitializeRepository() {
       .withSuccessHandler(function(res) {
         if (statusText) {
           statusText.textContent = 'Repository initialized successfully! Redirecting to Member Portal...';
+          statusText.style.color = '#0F766E';
         }
-        alert(res.message || 'Skyview Legal Repository successfully initialized!');
         // Automatically redirect to Member Portal
-        try {
-          if (window.top && window.top.location) {
-            window.top.location.href = '?page=portal';
-          } else {
-            window.location.href = '?page=portal';
+        var targetUrl = (res && res.redirectUrl) ? res.redirectUrl : '?page=portal';
+        setTimeout(function() {
+          try {
+            if (window.top && window.top.location) {
+              window.top.location.href = targetUrl;
+            } else {
+              window.location.href = targetUrl;
+            }
+          } catch (e) {
+            window.location.href = targetUrl;
           }
-        } catch (e) {
-          window.location.href = '?page=portal';
-        }
+        }, 600);
       })
       .withFailureHandler(function(err) {
         alert('Initialization failed: ' + (err.message || err));
@@ -581,17 +598,19 @@ function handleInitializeRepository() {
     setTimeout(function() {
       if (statusText) {
         statusText.textContent = 'Repository initialized successfully! Redirecting to Member Portal...';
+        statusText.style.color = '#0F766E';
       }
-      alert('Skyview Legal Repository structure successfully initialized!');
-      try {
-        if (window.top && window.top.location) {
-          window.top.location.href = '?page=portal';
-        } else {
+      setTimeout(function() {
+        try {
+          if (window.top && window.top.location) {
+            window.top.location.href = '?page=portal';
+          } else {
+            window.location.href = '?page=portal';
+          }
+        } catch (e) {
           window.location.href = '?page=portal';
         }
-      } catch (e) {
-        window.location.href = '?page=portal';
-      }
+      }, 600);
     }, 1500);
   }
 }

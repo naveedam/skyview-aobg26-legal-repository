@@ -32,7 +32,7 @@
         </div>
       </div>
       <p class="app-subtitle">
-        Association Advocates & Admin Console • Operated by <strong><?= (typeof userEmail !== 'undefined' && userEmail) ? userEmail : (getAdminEmail() || 'Administrator') ?></strong>
+        Association Advocates & Admin Console • Authorized Administrator: <strong><?= getAdminEmail() ?></strong>
       </p>
     </div>
   </header>
@@ -48,7 +48,7 @@
         <div class="setup-icon">⚙️</div>
         <h2 class="setup-title">First-Run Repository Initialization</h2>
         <p class="setup-desc">
-          The Skyview Legal Repository has not yet been provisioned in your Google Drive. Click below to automatically generate the complete folder hierarchy, configure Tower directories, and create the Master Register spreadsheet with the hidden Settings store.
+          Welcome to the Skyview AOBG26 Legal Repository zero-configuration production deployment. Click below to automatically provision the complete Google Drive folder hierarchy, tower directories, court proceedings archive, and the Skyview Master Register Google Sheet with its hidden Settings store.
         </p>
 
         <div class="setup-tree-preview">
@@ -69,7 +69,28 @@
    └── 📊 Skyview Master Register (Spreadsheet + Hidden Settings)
         </div>
 
-        <button type="button" id="initRepoBtn" class="btn btn-primary btn-lg">
+        <div style="margin-bottom: 20px; padding: 12px 16px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; font-size: 0.9rem; color: #166534; text-align: left;">
+          <strong>Zero-Config Production Guarantee:</strong> All folder IDs, spreadsheet configuration, and administrator credentials (<code>ieskyview.association@gmail.com</code>) will be recorded automatically in the hidden Settings sheet. No manual script editing or editor execution is ever required.
+        </div>
+
+        <!-- Prominent Warning Card with Yellow/Amber Accent and Warning Icon -->
+        <div class="setup-warning-card">
+          <div class="setup-warning-header">
+            <span class="setup-warning-icon">⚠️</span>
+            <h3 class="setup-warning-title">One-Time Repository Initialization</h3>
+          </div>
+          <p class="setup-warning-body">
+            This action can only be performed once. The Gmail account currently signed in will become the permanent Repository Administrator. It will own the Google Drive repository, Master Register, and administrative functions. Ensure you are signed in with the correct Association Gmail account before continuing.
+          </p>
+          <div class="setup-confirm-box">
+            <label class="setup-confirm-label" for="confirmInitCheckbox">
+              <input type="checkbox" id="confirmInitCheckbox" class="setup-confirm-checkbox" />
+              <span>I confirm I am authorized to initialize the Skyview AOBG26 Legal Repository using this Gmail account.</span>
+            </label>
+          </div>
+        </div>
+
+        <button type="button" id="initRepoBtn" class="btn btn-primary btn-lg" disabled>
           <span id="initSpinner" class="spinner hidden"></span>
           <span>Initialize Skyview Repository</span>
         </button>

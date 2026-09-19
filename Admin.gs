@@ -9,51 +9,101 @@
  */
 
 /**
- * Checks whether the repository has been initialized in Google Drive & Sheets.
+ * Checks whether the repository has been initialized by looking for the
+ * hidden Settings sheet inside the Master Register Google Spreadsheet.
  *
- * @return {Object} { initialized: boolean, rootFolderId: string, spreadsheetId: string, rootFolderUrl: string, spreadsheetUrl: string }
+ * Requirements:
+ * - Do not use Session.getActiveUser() or Session.getEffectiveUser() to determine whether setup is required.
+ * - Checks whether the hidden Settings sheet exists inside the Master Register.
+ * - If Settings sheet does not exist: initialized is false (triggers Administrator Setup screen).
+ * - If Settings sheet exists: initialized is true (triggers Member Portal).
+ *
+ * @return {Object} { initialized: boolean, rootFolderId: string, spreadsheetId: string, rootFolderUrl: string, spreadsheetUrl: string, adminEmail: string }
  */
 function checkRepositoryStatus() {
   var props = PropertiesService.getScriptProperties();
-  var rootFolderId = props.getProperty('ROOT_FOLDER_ID');
   var masterRegisterId = props.getProperty('MASTER_REGISTER_ID');
+  var rootFolderId = props.getProperty('ROOT_FOLDER_ID');
   
   var isReady = false;
   var rootFolderUrl = '';
   var spreadsheetUrl = '';
   
-  if (rootFolderId && masterRegisterId) {
+  // 1. Direct check using cached MASTER_REGISTER_ID
+  if (masterRegisterId) {
     try {
-      var rootFolder = DriveApp.getFolderById(rootFolderId);
-      var masterFile = DriveApp.getFileById(masterRegisterId);
-      rootFolderUrl = rootFolder.getUrl();
-      spreadsheetUrl = masterFile.getUrl();
-      isReady = true;
+      var ss = SpreadsheetApp.openById(masterRegisterId);
+      var settingsSheet = ss.getSheetByName(SHEET_NAME_SETTINGS);
+      if (settingsSheet) {
+        spreadsheetUrl = ss.getUrl();
+        isReady = true;
+
+        if (!rootFolderId) {
+          // Read rootFolderId from Settings sheet if missing in properties
+          var data = settingsSheet.getDataRange().getValues();
+          for (var i = 0; i < data.length; i++) {
+            if (data[i][0] === 'ROOT_FOLDER_ID' && data[i][1]) {
+              rootFolderId = data[i][1].toString().trim();
+              props.setProperty('ROOT_FOLDER_ID', rootFolderId);
+              break;
+            }
+          }
+        }
+
+        if (rootFolderId) {
+          try {
+            var rootFolder = DriveApp.getFolderById(rootFolderId);
+            rootFolderUrl = rootFolder.getUrl();
+          } catch (folderErr) {
+            Logger.log('Root folder retrieval notice: ' + folderErr);
+          }
+        }
+      }
     } catch (e) {
-      Logger.log('Drive/Sheet access check error: ' + e);
+      Logger.log('Master Register verification error: ' + e);
       isReady = false;
     }
-  } else {
-    // Auto-discovery fallback in Google Drive
+  }
+  
+  // 2. Drive auto-discovery fallback if not found in cache
+  if (!isReady) {
     try {
-      var folders = DriveApp.getFoldersByName(ROOT_FOLDER_NAME);
-      if (folders.hasNext()) {
-        var existingRoot = folders.next();
-        var files = existingRoot.getFilesByName(SPREADSHEET_NAME);
-        if (files.hasNext()) {
-          var existingSheet = files.next();
-          rootFolderId = existingRoot.getId();
-          masterRegisterId = existingSheet.getId();
-          props.setProperty('ROOT_FOLDER_ID', rootFolderId);
-          props.setProperty('MASTER_REGISTER_ID', masterRegisterId);
-          props.setProperty('INITIALIZED', 'true');
-          rootFolderUrl = existingRoot.getUrl();
-          spreadsheetUrl = existingSheet.getUrl();
-          isReady = true;
+      var files = DriveApp.getFilesByName(SPREADSHEET_NAME);
+      while (files.hasNext()) {
+        var existingFile = files.next();
+        try {
+          var testSs = SpreadsheetApp.openById(existingFile.getId());
+          var testSettings = testSs.getSheetByName(SHEET_NAME_SETTINGS);
+          if (testSettings) {
+            masterRegisterId = existingFile.getId();
+            spreadsheetUrl = existingFile.getUrl();
+            props.setProperty('MASTER_REGISTER_ID', masterRegisterId);
+            props.setProperty('INITIALIZED', 'true');
+            isReady = true;
+
+            // Load and cache settings from sheet
+            var sData = testSettings.getDataRange().getValues();
+            for (var j = 0; j < sData.length; j++) {
+              var k = sData[j][0] ? sData[j][0].toString().trim() : '';
+              var v = sData[j][1] ? sData[j][1].toString().trim() : '';
+              if (k && v) {
+                props.setProperty(k, v);
+                if (k === 'ROOT_FOLDER_ID') {
+                  rootFolderId = v;
+                  try {
+                    rootFolderUrl = DriveApp.getFolderById(v).getUrl();
+                  } catch (rfErr) {}
+                }
+              }
+            }
+            break;
+          }
+        } catch (subErr) {
+          Logger.log('Auto-discovery candidate check notice: ' + subErr);
         }
       }
     } catch (discoveryErr) {
-      Logger.log('Auto-discovery error: ' + discoveryErr);
+      Logger.log('Drive auto-discovery error: ' + discoveryErr);
     }
   }
   
@@ -69,46 +119,53 @@ function checkRepositoryStatus() {
 
 /**
  * One-time Self-Initializing Repository Setup.
- * Automatically generates the complete Drive hierarchy, Master Register spreadsheet,
- * and hidden Settings sheet.
- * Saves the current logged-in user email as ADMIN_EMAIL into the Settings sheet.
- * Stores all generated Folder IDs and Spreadsheet IDs inside the hidden Settings sheet.
+ * Objective: The deployed Web App requires NO manual execution of Apps Script functions.
+ * When the administrator clicks Initialize Repository:
+ * 1. Create the root Google Drive folder 'Skyview Legal Repository'.
+ * 2. Create Block Venus with Tower A, B, C, D.
+ * 3. Create Block Jupiter with Tower A, B, C, D, E.
+ * 4. Create Association Documents.
+ * 5. Create Court Proceedings.
+ * 6. Create the Skyview Master Register Google Sheet.
+ * 7. Create a hidden Settings sheet.
+ * 8. Store all folder IDs, spreadsheet ID, initialization timestamp, and the
+ *    administrator email (ieskyview.association@gmail.com) inside Settings.
+ * 9. Mark the repository as initialized.
+ * 10. Automatically redirect to the Member Portal.
  *
  * @return {Object} Initialization result details
  */
 function initializeRepository() {
   var status = checkRepositoryStatus();
-  var currentUserEmail = '';
-  try {
-    currentUserEmail = Session.getActiveUser().getEmail() || '';
-  } catch (sessionErr) {
-    Logger.log('Session error during initialization: ' + sessionErr);
-  }
-  currentUserEmail = currentUserEmail.toLowerCase().trim();
-
-  if (!currentUserEmail) {
-    throw new Error('Unauthorized: Could not determine active Google Account email. Please ensure you are logged in to initialize the repository.');
-  }
-
-  // If already initialized, only the stored ADMIN_EMAIL may re-initialize
   if (status.initialized) {
-    var existingAdmin = getAdminEmail();
-    if (existingAdmin && currentUserEmail !== existingAdmin) {
-      throw new Error('Unauthorized: Repository is already initialized. Restricted to ' + existingAdmin);
-    }
+    return {
+      success: true,
+      message: 'Skyview Legal Repository is already initialized.',
+      rootFolderId: status.rootFolderId,
+      rootFolderUrl: status.rootFolderUrl,
+      spreadsheetId: status.spreadsheetId,
+      spreadsheetUrl: status.spreadsheetUrl,
+      redirectUrl: '?page=portal'
+    };
+  }
+
+  var targetAdminEmail = 'ieskyview.association@gmail.com';
+  var userSessionEmail = '';
+  try {
+    userSessionEmail = Session.getActiveUser().getEmail() || '';
+  } catch (sessionErr) {
+    Logger.log('Session email during setup: ' + sessionErr);
   }
 
   var props = PropertiesService.getScriptProperties();
-  
-  // Persist current logged-in user as the authorized Administrator
-  props.setProperty('ADMIN_EMAIL', currentUserEmail);
+  props.setProperty('ADMIN_EMAIL', targetAdminEmail);
   
   // 1. Create Root Folder: "Skyview Legal Repository"
   var rootFolder = DriveApp.createFolder(ROOT_FOLDER_NAME);
   var rootFolderId = rootFolder.getId();
   props.setProperty('ROOT_FOLDER_ID', rootFolderId);
   
-  // 2. Create Block Venus & Towers (A–D)
+  // 2. Create Block Venus with Tower A, B, C, D
   var venusFolder = rootFolder.createFolder('Block Venus');
   var venusFolderId = venusFolder.getId();
   props.setProperty('VENUS_FOLDER_ID', venusFolderId);
@@ -122,7 +179,7 @@ function initializeRepository() {
     venusTowerMap[tV] = tIdV;
   }
   
-  // 3. Create Block Jupiter & Towers (A–E)
+  // 3. Create Block Jupiter with Tower A, B, C, D, E
   var jupiterFolder = rootFolder.createFolder('Block Jupiter');
   var jupiterFolderId = jupiterFolder.getId();
   props.setProperty('JUPITER_FOLDER_ID', jupiterFolderId);
@@ -162,7 +219,6 @@ function initializeRepository() {
   
   registerSheet.getRange(1, 1, 1, REGISTER_COLUMNS.length).setValues([REGISTER_COLUMNS]);
   
-  // Apply Association styling: Teal header (#0F766E), bold white text, frozen row
   var headerRange = registerSheet.getRange(1, 1, 1, REGISTER_COLUMNS.length);
   headerRange.setBackground('#0F766E')
              .setFontColor('#FFFFFF')
@@ -193,8 +249,9 @@ function initializeRepository() {
   registerSheet.setColumnWidth(17, 260); // Drive Link
   
   // 7. Setup hidden "Settings" Sheet
-  // Stores ALL generated Folder IDs and Spreadsheet IDs dynamically
+  // Store all folder IDs, spreadsheet ID, initialization timestamp, and the administrator email (ieskyview.association@gmail.com) inside Settings
   var settingsSheet = spreadsheet.insertSheet(SHEET_NAME_SETTINGS);
+  var initTimestamp = new Date().toISOString();
   var settingsData = [
     ['Key', 'Value', 'Description'],
     ['ROOT_FOLDER_ID', rootFolderId, 'Root ID for Skyview Legal Repository Drive folder'],
@@ -215,10 +272,10 @@ function initializeRepository() {
     ['REGISTER_SHEET_NAME', SHEET_NAME_REGISTER, 'Main legal document register sheet'],
     ['SETTINGS_SHEET_NAME', SHEET_NAME_SETTINGS, 'Hidden system configuration sheet'],
     ['ASSOCIATION_NAME', ASSOCIATION_NAME, 'Registered Association Name'],
-    ['ADMIN_EMAIL', currentUserEmail, 'Administrator account authorized for dashboard & maintenance'],
-    ['OWNER_ACCOUNT', currentUserEmail, 'Owner Google Workspace account'],
-    ['INITIALIZED_AT', new Date().toISOString(), 'Repository creation timestamp'],
-    ['INITIALIZED_BY', currentUserEmail, 'Administrator Account that performed initialization']
+    ['ADMIN_EMAIL', targetAdminEmail, 'Administrator email authorized for dashboard & maintenance'],
+    ['INITIALIZED_AT', initTimestamp, 'Repository creation timestamp'],
+    ['INITIALIZED_BY', userSessionEmail || targetAdminEmail, 'Administrator account that initialized repository'],
+    ['INITIALIZED', 'true', 'Repository initialization flag']
   ];
   
   settingsSheet.getRange(1, 1, settingsData.length, 3).setValues(settingsData);
@@ -234,7 +291,8 @@ function initializeRepository() {
     rootFolderId: rootFolderId,
     rootFolderUrl: rootFolder.getUrl(),
     spreadsheetId: spreadsheetId,
-    spreadsheetUrl: spreadsheet.getUrl()
+    spreadsheetUrl: spreadsheet.getUrl(),
+    redirectUrl: '?page=portal'
   };
 }
 

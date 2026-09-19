@@ -498,6 +498,15 @@ body {
   border-radius: var(--radius-md);
 }
 
+.btn:disabled, .btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  filter: grayscale(40%);
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* Stats Cards (Admin) */
 .stats-grid {
   display: grid;
@@ -678,6 +687,72 @@ body {
   margin-bottom: 26px;
   line-height: 1.5;
   color: var(--text-main);
+}
+
+/* Setup Warning Card (Yellow / Amber Accent) */
+.setup-warning-card {
+  margin: 0 auto 24px auto;
+  max-width: 600px;
+  background-color: #FFFBEB;
+  border: 1.5px solid #F59E0B;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.08);
+}
+
+.setup-warning-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.setup-warning-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.setup-warning-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #92400E;
+  margin: 0;
+}
+
+.setup-warning-body {
+  font-size: 0.88rem;
+  color: #78350F;
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.setup-confirm-box {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.setup-confirm-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #78350F;
+  user-select: none;
+  line-height: 1.45;
+}
+
+.setup-confirm-checkbox {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  accent-color: #D97706;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* Modal */
