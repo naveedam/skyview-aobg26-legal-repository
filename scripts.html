@@ -6,6 +6,33 @@
  * Client-side script handling dynamic forms, unit calculations, file conversion, and server RPCs.
  */
 
+/**
+ * Dynamic generator for Property Unit Flat Numbers:
+ * Block Venus:
+ * - Tower A -> 01-10
+ * - Tower B -> 01-10
+ * - Tower C -> 01-10
+ * - Tower D -> 01-10
+ * Block Jupiter:
+ * - Tower A -> 01-10
+ * - Tower B -> 01-10
+ * - Tower C -> 01-10
+ * - Tower D -> 01-10
+ * - Tower E -> 01-10
+ *
+ * @param {string} block "Venus" | "Jupiter"
+ * @param {string} tower "A" | "B" | "C" | "D" | "E"
+ * @return {Array<string>} ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+ */
+function getFlatsForTower(block, tower) {
+  var count = 10;
+  var list = [];
+  for (var i = 1; i <= count; i++) {
+    list.push(('0' + i).slice(-2));
+  }
+  return list;
+}
+
 // Global configuration
 var PORTAL_CONFIG = {
   blocks: [
@@ -17,7 +44,8 @@ var PORTAL_CONFIG = {
     '10', '11', '12', '13', '14', '15', '16', '17', '18', '19',
     '20', '21', '22', '23', '24', '25'
   ],
-  flats: ['01', '02', '03', '04'],
+  getFlats: getFlatsForTower,
+  flats: getFlatsForTower('Venus', 'A'),
   docTypes: [
     'Allotment Letter',
     'Builder Buyer Agreement',
@@ -136,6 +164,8 @@ function addUnitCard() {
   
   var isFirst = unitsState.length === 1;
   
+  var flatOptions = PORTAL_CONFIG.getFlats(unitData.block, unitData.tower);
+
   card.innerHTML = [
     '<div class="unit-card-header">',
     '  <div class="unit-header-info">',
@@ -171,7 +201,7 @@ function addUnitCard() {
     '    <div class="form-group">',
     '      <label class="form-label form-label-required">Flat Number</label>',
     '      <select class="form-select" id="' + unitId + '_flat" onchange="onUnitFieldChange(\'' + unitId + '\', \'flat\', this.value)">',
-           PORTAL_CONFIG.flats.map(function(fl) { return '<option value="' + fl + '">' + fl + '</option>'; }).join(''),
+           flatOptions.map(function(fl) { return '<option value="' + fl + '">' + fl + '</option>'; }).join(''),
     '      </select>',
     '    </div>',
     '  </div>',
@@ -208,6 +238,30 @@ function addUnitCard() {
 }
 
 /**
+ * Dynamically updates Flat Number dropdown options based on Block and Tower
+ */
+function updateFlatSelectOptions(unitId, block, tower) {
+  var flatSelect = document.getElementById(unitId + '_flat');
+  if (!flatSelect) return;
+  var currentVal = flatSelect.value;
+  var flats = PORTAL_CONFIG.getFlats(block, tower);
+  flatSelect.innerHTML = '';
+  flats.forEach(function(fl) {
+    var opt = document.createElement('option');
+    opt.value = fl;
+    opt.textContent = fl;
+    flatSelect.appendChild(opt);
+  });
+  if (flats.indexOf(currentVal) !== -1) {
+    flatSelect.value = currentVal;
+  } else {
+    flatSelect.value = flats[0];
+    var unit = unitsState.find(function(u) { return u.id === unitId; });
+    if (unit) unit.flat = flats[0];
+  }
+}
+
+/**
  * Removes a unit card
  */
 function removeUnitCard(unitId) {
@@ -232,7 +286,7 @@ function onUnitFieldChange(unitId, field, val) {
   if (!unit) return;
   unit[field] = val;
   
-  // If block changed, update tower options
+  // If block changed, update tower options and refresh flat numbers
   if (field === 'block') {
     var towerSelect = document.getElementById(unitId + '_tower');
     if (towerSelect) {
@@ -246,6 +300,9 @@ function onUnitFieldChange(unitId, field, val) {
       });
       unit.tower = towerList[0];
     }
+    updateFlatSelectOptions(unitId, unit.block, unit.tower);
+  } else if (field === 'tower') {
+    updateFlatSelectOptions(unitId, unit.block, unit.tower);
   }
   
   updateUnitCodeUI(unitId);

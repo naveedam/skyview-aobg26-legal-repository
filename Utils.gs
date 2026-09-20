@@ -65,28 +65,57 @@ var REGISTER_COLUMNS = [
 
 /**
  * Dynamically retrieves the authorized administrator email address.
- * Reads from the hidden Settings sheet / Script Properties.
+ * Reads directly from the hidden Settings sheet / Script Properties.
  *
  * @return {string} Configured admin email address in lowercase, or empty string if not yet initialized.
  */
 function getAdminEmail() {
   try {
+    // 1. Authoritative lookup from hidden Settings sheet
+    var settingVal = getSetting('ADMIN_EMAIL');
+    if (settingVal) {
+      var email = settingVal.toLowerCase().trim();
+      PropertiesService.getScriptProperties().setProperty('ADMIN_EMAIL', email);
+      return email;
+    }
+    
+    // 2. Cache lookup via Script Properties
     var props = PropertiesService.getScriptProperties();
     var cached = props.getProperty('ADMIN_EMAIL');
     if (cached) {
       return cached.toLowerCase().trim();
     }
-    
-    // Read from hidden Settings sheet
-    var settingVal = getSetting('ADMIN_EMAIL');
-    if (settingVal) {
-      props.setProperty('ADMIN_EMAIL', settingVal.toLowerCase().trim());
-      return settingVal.toLowerCase().trim();
-    }
   } catch (e) {
     Logger.log('Error reading dynamic ADMIN_EMAIL: ' + e);
   }
   return '';
+}
+
+/**
+ * Dynamic generator for tower flat numbers according to Association mapping:
+ * Block Venus:
+ * - Tower A -> 01-10
+ * - Tower B -> 01-10
+ * - Tower C -> 01-10
+ * - Tower D -> 01-10
+ * Block Jupiter:
+ * - Tower A -> 01-10
+ * - Tower B -> 01-10
+ * - Tower C -> 01-10
+ * - Tower D -> 01-10
+ * - Tower E -> 01-10
+ *
+ * @param {string} [block] "Venus" | "Jupiter"
+ * @param {string} [tower] "A" | "B" | "C" | "D" | "E"
+ * @return {Array<string>} List of 2-digit formatted flat strings: ['01', '02', ..., '10']
+ */
+function getFlatsForTower(block, tower) {
+  var count = 10;
+  var flats = [];
+  for (var i = 1; i <= count; i++) {
+    flats.push(('0' + i).slice(-2));
+  }
+  return flats;
 }
 
 /**
@@ -139,7 +168,7 @@ function checkIsAdminUser() {
  * @param {string} block "Venus" | "Jupiter"
  * @param {string} tower "A" | "B" | "C" | "D" | "E"
  * @param {string|number} floor "00" - "25"
- * @param {string|number} flat "01" - "04"
+ * @param {string|number} flat "01" - "10"
  * @return {string} Formatted unit code e.g. "VA-1204"
  */
 function formatUnitCode(block, tower, floor, flat) {

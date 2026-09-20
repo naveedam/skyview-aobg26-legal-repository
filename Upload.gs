@@ -251,8 +251,9 @@ function sendSubmissionConfirmationEmail(recipientEmail, memberName, submissionI
   // Subject: Skyview Repository Submission Received – {Submission ID}
   var subject = 'Skyview Repository Submission Received \u2013 ' + submissionId;
   
-  var adminContact = getAdminEmail();
-  var adminContactNotice = adminContact ? ('Administrative Contact: ' + adminContact) : '';
+  // Retrieve ADMIN_EMAIL from the hidden Settings sheet as the replyTo address
+  var adminEmail = getAdminEmail();
+  var adminContactNotice = adminEmail ? ('Administrative Contact: ' + adminEmail) : '';
   
   var plainBody = [
     'Dear ' + memberName + ',',
@@ -275,8 +276,8 @@ function sendSubmissionConfirmationEmail(recipientEmail, memberName, submissionI
     adminContactNotice
   ].filter(function(line) { return line !== ''; }).join('\n');
   
-  var htmlAdminNotice = adminContact 
-    ? ('<br/>Administrative Contact: <a href="mailto:' + adminContact + '" style="color: #0F766E; text-decoration: none;">' + adminContact + '</a>')
+  var htmlAdminNotice = adminEmail 
+    ? ('<br/>Administrative Contact: <a href="mailto:' + adminEmail + '" style="color: #0F766E; text-decoration: none;">' + adminEmail + '</a>')
     : '';
 
   var htmlBody = [
@@ -318,22 +319,30 @@ function sendSubmissionConfirmationEmail(recipientEmail, memberName, submissionI
   ].join('\n');
   
   try {
-    GmailApp.sendEmail(recipientEmail, subject, plainBody, {
+    var mailOptions = {
       htmlBody: htmlBody,
       name: 'Skyview Legal Repository'
-    });
-    Logger.log('Gmail confirmation email sent successfully to ' + recipientEmail + ' for ' + submissionId);
+    };
+    if (adminEmail) {
+      mailOptions.replyTo = adminEmail;
+    }
+    GmailApp.sendEmail(recipientEmail, subject, plainBody, mailOptions);
+    Logger.log('Gmail confirmation email sent successfully to ' + recipientEmail + ' for ' + submissionId + (adminEmail ? ' (replyTo: ' + adminEmail + ')' : ''));
   } catch (gmailErr) {
     Logger.log('GmailApp error: ' + gmailErr + ' - attempting fallback via MailApp');
     try {
-      MailApp.sendEmail({
+      var fallbackMailOptions = {
         to: recipientEmail,
         subject: subject,
         body: plainBody,
         htmlBody: htmlBody,
         name: 'Skyview Legal Repository'
-      });
-      Logger.log('MailApp fallback confirmation email sent successfully to ' + recipientEmail);
+      };
+      if (adminEmail) {
+        fallbackMailOptions.replyTo = adminEmail;
+      }
+      MailApp.sendEmail(fallbackMailOptions);
+      Logger.log('MailApp fallback confirmation email sent successfully to ' + recipientEmail + (adminEmail ? ' (replyTo: ' + adminEmail + ')' : ''));
     } catch (mailErr) {
       Logger.log('MailApp error: ' + mailErr);
     }
